@@ -330,6 +330,8 @@ function scoreCandidateForTarget(
   fund: Fund,
   idealReturn: number,
   idealRisk: number,
+  hedgePreference: 'none' | 'hedged' | 'both' = 'none',
+  category: string = '',
 ): { qualityScore: ScoreBreakdown; fitScore: number; totalScore: number } {
   const qualityScore = scoreFund(fund);
   const fundReturn = getLongTermReturn(fund);
@@ -353,6 +355,22 @@ function scoreCandidateForTarget(
 
   // stdDevの実データがあるファンドにボーナス
   if (fund.stdDev !== null) fitScore += 30;
+
+  // 為替ヘッジ適合ボーナス/ペナルティ
+  const hedged = isHedgedFund(fund);
+  const overseas = isOverseasCategory(category);
+  if (overseas) {
+    if (hedgePreference === 'hedged') {
+      // ヘッジあり希望: ヘッジ付きファンドに大幅ボーナス
+      fitScore += hedged ? 50 : -30;
+    } else if (hedgePreference === 'none') {
+      // ヘッジなし希望: ヘッジなしファンドにボーナス
+      fitScore += hedged ? -20 : 10;
+    } else if (hedgePreference === 'both') {
+      // 混合: どちらでもOKだが、ヘッジ付きに軽いボーナス
+      fitScore += hedged ? 15 : 0;
+    }
+  }
 
   // 品質スコアは0-100を0-30に圧縮（副次的な評価）
   const qualityWeight = Math.round(qualityScore.total * 0.3);
@@ -385,11 +403,28 @@ function isEligibleForPreset(fund: Fund): boolean {
   return true;
 }
 
+// 為替ヘッジの判定
+const HEDGE_KEYWORDS = ['為替ヘッジ', 'ヘッジあり', 'ヘッジ付', 'ヘッジ型', '（ヘッジあり）', '(ヘッジあり)', 'hedged'];
+const OVERSEAS_CATEGORIES = ['先進国株式', '全世界株式', '海外債券', '新興国株式', '新興国債券', 'REIT', 'コモディティ'];
+
+function isHedgedFund(fund: Fund): boolean {
+  if (fund.forexHedge === true) return true;
+  for (const kw of HEDGE_KEYWORDS) {
+    if (fund.name.toLowerCase().includes(kw.toLowerCase())) return true;
+  }
+  return false;
+}
+
+function isOverseasCategory(category: string): boolean {
+  return OVERSEAS_CATEGORIES.includes(category);
+}
+
 export function optimizeFundsForPreset(
   allFunds: Fund[],
   allocations: Array<{ category: string; weight: number }>,
   targetReturn: number,
   targetRisk: number,
+  hedgePreference: 'none' | 'hedged' | 'both' = 'none',
 ): Array<{ fund: Fund; weight: number; score: ScoreBreakdown; fitScore: number }> {
   const usedFundIds = new Set<string>();
 
@@ -413,10 +448,10 @@ export function optimizeFundsForPreset(
     const idealRisk = categoryRiskBenchmark[alloc.category] ?? targetRisk;
 
     let bestFund = candidates[0];
-    let bestInfo = scoreCandidateForTarget(bestFund, idealReturn, idealRisk);
+    let bestInfo = scoreCandidateForTarget(bestFund, idealReturn, idealRisk, hedgePreference, alloc.category);
 
     for (const c of candidates) {
-      const info = scoreCandidateForTarget(c, idealReturn, idealRisk);
+      const info = scoreCandidateForTarget(c, idealReturn, idealRisk, hedgePreference, alloc.category);
       if (info.totalScore > bestInfo.totalScore) {
         bestFund = c;
         bestInfo = info;
@@ -478,7 +513,7 @@ export function optimizeFundsForPreset(
       if (bestCandidate.id !== slot.fund.id) {
         usedFundIds.delete(slot.fund.id);
         usedFundIds.add(bestCandidate.id);
-        const info = scoreCandidateForTarget(bestCandidate, neededReturn, neededRisk);
+        const info = scoreCandidateForTarget(bestCandidate, neededReturn, neededRisk, hedgePreference, alloc.category);
         result[i] = { fund: bestCandidate, weight: slot.weight, score: info.qualityScore, fitScore: info.fitScore };
         improved = true;
       }

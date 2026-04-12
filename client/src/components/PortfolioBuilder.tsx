@@ -71,12 +71,13 @@ export default function PortfolioBuilder({ selectedFunds, allFunds, onUpdateWeig
     setSelectedPreset(preset.id);
     onPresetChange?.(preset.id);
 
-    // プリセットの目標リターン/リスクに合うようにファンドを最適選定
+    // プリセットの目標リターン/リスクに合うようにファンドを最適選定（ヘッジ設定反映）
     const optimized = optimizeFundsForPreset(
       allFunds,
       preset.allocations,
       preset.expectedReturn,
       preset.risk,
+      forexHedge,
     );
 
     const items: PortfolioItem[] = optimized.map(o => ({
@@ -201,7 +202,17 @@ export default function PortfolioBuilder({ selectedFunds, allFunds, onUpdateWeig
                 ]).map(opt => (
                   <button
                     key={opt.value}
-                    onClick={() => setForexHedge(opt.value)}
+                    onClick={() => {
+                      setForexHedge(opt.value);
+                      // ヘッジ変更時にプリセットが選択済みなら再選定
+                      if (selectedPreset) {
+                        const preset = portfolioPresets.find(p => p.id === selectedPreset);
+                        if (preset) {
+                          const optimized = optimizeFundsForPreset(allFunds, preset.allocations, preset.expectedReturn, preset.risk, opt.value);
+                          onUpdateWeights(optimized.map(o => ({ fund: o.fund, weight: o.weight })));
+                        }
+                      }
+                    }}
                     className={`p-3 rounded-lg border-2 text-left transition-all ${
                       forexHedge === opt.value
                         ? 'border-purple-500 bg-purple-50 text-purple-700'
