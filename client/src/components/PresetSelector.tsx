@@ -50,36 +50,43 @@ export default function PresetSelector({ selectedPreset, onSelectPreset }: Prese
       <h2 className="text-lg font-semibold text-gray-800 mb-1">ポートフォリオタイプを選択</h2>
       <p className="text-sm text-gray-500 mb-4">6つのプリセットから投資スタイルに合ったものを選択すると、自動的にファンドが割り当てられます</p>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
         {portfolioPresets.map((preset, index) => {
           const colors = colorMap[preset.color] || colorMap.blue;
           const isSelected = selectedPreset === preset.id;
+          // スマホ用に名前を2行に分割
+          const nameParts = preset.name.split('＋');
 
           return (
             <button
               key={preset.id}
               onClick={() => onSelectPreset(preset)}
-              className={`p-4 rounded-lg border-2 text-left transition-all hover:shadow-md ${
+              className={`p-2.5 sm:p-4 rounded-lg border-2 text-left transition-all hover:shadow-md ${
                 isSelected
                   ? `${colors.bg} ${colors.border}`
                   : 'border-gray-200 hover:border-gray-300'
               }`}
             >
               <div className="flex items-start justify-between mb-1">
-                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${colors.badge}`}>
+                <span className={`text-[10px] sm:text-xs font-bold px-1.5 sm:px-2 py-0.5 rounded-full ${colors.badge}`}>
                   {index + 1}
                 </span>
                 {isSelected && (
-                  <span className="text-xs font-bold text-green-600">選択中</span>
+                  <span className="text-[10px] sm:text-xs font-bold text-green-600">選択中</span>
                 )}
               </div>
-              <div className={`font-semibold text-sm mt-1 ${isSelected ? colors.text : 'text-gray-800'}`}>
-                {preset.name}
+              <div className={`font-semibold text-xs sm:text-sm mt-1 leading-tight ${isSelected ? colors.text : 'text-gray-800'}`}>
+                {nameParts.length > 1 ? (
+                  <>
+                    <div>{nameParts[0]}</div>
+                    <div>＋{nameParts[1]}</div>
+                  </>
+                ) : preset.name}
               </div>
-              <div className="text-xs text-gray-500 mt-0.5">{preset.subtitle}</div>
+              <div className="text-[10px] sm:text-xs text-gray-500 mt-0.5 hidden sm:block">{preset.subtitle}</div>
 
               {/* 資産配分バッジ */}
-              <div className="flex flex-wrap gap-1 mt-2">
+              <div className="hidden sm:flex flex-wrap gap-1 mt-2">
                 {preset.allocations.map(a => (
                   <span
                     key={a.category}
