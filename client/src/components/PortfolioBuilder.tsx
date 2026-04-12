@@ -195,9 +195,9 @@ export default function PortfolioBuilder({ selectedFunds, allFunds, onUpdateWeig
               <h3 className="text-lg font-semibold text-gray-800 mb-3">為替ヘッジ</h3>
               <div className="grid grid-cols-3 gap-2">
                 {([
-                  { value: 'none' as const, label: 'ヘッジなし', desc: '為替変動の影響を受ける。長期ではリターン向上の可能性。' },
-                  { value: 'hedged' as const, label: 'ヘッジあり', desc: '為替リスクを軽減。ヘッジコストがかかる。' },
-                  { value: 'both' as const, label: '混合', desc: '一部ヘッジあり・一部なしで柔軟に対応。' },
+                  { value: 'none' as const, label: 'なし', desc: '為替変動の影響を受ける' },
+                  { value: 'hedged' as const, label: 'あり', desc: '為替リスクを軽減' },
+                  { value: 'both' as const, label: '混合', desc: '一部ヘッジあり・なし' },
                 ]).map(opt => (
                   <button
                     key={opt.value}

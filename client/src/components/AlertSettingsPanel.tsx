@@ -103,12 +103,12 @@ export default function AlertSettingsPanel({ config, onConfigChange }: AlertSett
                         className="w-4 h-4 text-blue-600 rounded"
                       />
                       <div>
-                        <div className="text-sm text-gray-800 font-medium">
+                        <div className="text-xs sm:text-sm text-gray-800 font-medium whitespace-nowrap">
                           {rule.type === 'return_change' && 'リターン変動'}
                           {rule.type === 'sharpe_decline' && 'シャープレシオ低下'}
                           {rule.type === 'risk_change' && 'リスク水準変化'}
                         </div>
-                        <div className="text-[11px] text-gray-500">{rule.description}</div>
+                        <div className="text-[10px] sm:text-[11px] text-gray-500">{rule.description}</div>
                       </div>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
