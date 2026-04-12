@@ -282,7 +282,7 @@ export default function Simulation({ portfolioItems, savedAge, onAgeChange }: Si
                 width={80}
               />
               <Tooltip
-                formatter={(value: number, name: string) => [formatYen(value), name]}
+                formatter={(value: any, name: any) => [formatYen(Number(value)), String(name)]}
                 labelFormatter={label => String(label)}
               />
               <Legend />
@@ -297,7 +297,7 @@ export default function Simulation({ portfolioItems, savedAge, onAgeChange }: Si
           {lifeEvents.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-2">
               {lifeEvents.map(e => {
-                const yearIdx = e.age - currentAge;
+                const yearIdx = e.age - currentAge!;
                 const monthIdx = yearIdx * 12;
                 const amount = monthIdx < simulation.expected.length ? simulation.expected[monthIdx] : finalExpected;
                 return (

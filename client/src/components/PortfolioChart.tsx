@@ -1,5 +1,5 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, ScatterChart, Scatter, XAxis, YAxis, CartesianGrid } from 'recharts';
-import type { PortfolioItem, Fund } from '../lib/types';
+import type { PortfolioItem } from '../lib/types';
 import { calcPortfolioStats } from '../lib/optimizer';
 
 interface PortfolioChartProps {
@@ -89,14 +89,14 @@ export default function PortfolioChart({ items, showFrontier, frontierData }: Po
                 innerRadius={50}
                 outerRadius={100}
                 dataKey="value"
-                label={({ name, value }) => `${value}%`}
+                label={({ value }) => `${value}%`}
                 labelLine={false}
               >
                 {pieData.map((_, idx) => (
                   <Cell key={idx} fill={COLORS[idx % COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip formatter={(value: number) => `${value}%`} />
+              <Tooltip formatter={(value: any) => `${value}%`} />
               <Legend
                 layout="vertical"
                 align="right"
@@ -119,14 +119,14 @@ export default function PortfolioChart({ items, showFrontier, frontierData }: Po
                 innerRadius={50}
                 outerRadius={100}
                 dataKey="value"
-                label={({ name, value }) => `${value}%`}
+                label={({ value }) => `${value}%`}
                 labelLine={false}
               >
                 {categoryData.map((entry, idx) => (
                   <Cell key={idx} fill={categoryColors[entry.name] || COLORS[idx % COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip formatter={(value: number) => `${value}%`} />
+              <Tooltip formatter={(value: any) => `${value}%`} />
               <Legend
                 layout="vertical"
                 align="right"
@@ -160,7 +160,7 @@ export default function PortfolioChart({ items, showFrontier, frontierData }: Po
                 label={{ value: 'リターン%', angle: -90, position: 'insideLeft' }}
               />
               <Tooltip
-                formatter={(value: number, name: string) => [
+                formatter={(value: any, name: any) => [
                   `${value.toFixed(1)}%`,
                   name === 'risk' ? 'リスク' : 'リターン',
                 ]}

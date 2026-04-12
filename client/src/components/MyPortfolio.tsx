@@ -164,10 +164,10 @@ export default function MyPortfolio({ items, presetId, confirmed, onConfirm, onU
                 <ResponsiveContainer width="100%" height={260}>
                   <PieChart>
                     <Pie data={pieData} cx="50%" cy="50%" innerRadius={45} outerRadius={95} dataKey="value"
-                      label={({ category, value }) => `${category} ${value}%`} labelLine={false}>
+                      label={({ value }) => `${value}%`} labelLine={false}>
                       {pieData.map((_, idx) => (<Cell key={idx} fill={COLORS[idx % COLORS.length]} />))}
                     </Pie>
-                    <Tooltip formatter={(value: number) => `${value}%`} />
+                    <Tooltip formatter={(value: any) => `${value}%`} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>

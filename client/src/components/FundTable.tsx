@@ -15,13 +15,6 @@ function formatNumber(n: number | null, decimals: number = 1): string {
   return n.toFixed(decimals);
 }
 
-function formatAssets(n: number): string {
-  if (n >= 1000000) return `${(n / 1000000).toFixed(1)}兆`;
-  if (n >= 10000) return `${(n / 10000).toFixed(0)}億`;
-  if (n >= 100) return `${(n / 100).toFixed(0)}億`;
-  return `${n}百万`;
-}
-
 function returnColor(n: number | null): string {
   if (n === null) return 'text-gray-400';
   if (n > 0) return 'text-red-600';

@@ -60,7 +60,7 @@ function ScoreDetail({ score }: { score: ScoreBreakdown }) {
 }
 
 export default function PortfolioBuilder({ selectedFunds, allFunds, onUpdateWeights, onGoToSimulation, disabled, onPresetChange }: PortfolioBuilderProps) {
-  const [riskTolerance, setRiskTolerance] = useState<RiskTolerance>('medium');
+  const [riskTolerance] = useState<RiskTolerance>('medium');
   const [showFrontier, setShowFrontier] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
   const [forexHedge, setForexHedge] = useState<'none' | 'hedged' | 'both'>('none');

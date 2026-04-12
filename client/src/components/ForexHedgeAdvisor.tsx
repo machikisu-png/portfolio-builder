@@ -109,6 +109,7 @@ function getAdvice(hedgeSelection: string, years: number): { summary: string; re
   };
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export default function ForexHedgeAdvisor({ hedgeSelection, investmentYears }: ForexHedgeAdvisorProps) {
   const [expanded, setExpanded] = useState(false);
   const [showFactors, setShowFactors] = useState(false);

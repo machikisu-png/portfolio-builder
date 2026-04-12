@@ -1,4 +1,4 @@
-import type { MonitoringConfig, AlertRule } from '../lib/alertTypes';
+import type { MonitoringConfig } from '../lib/alertTypes';
 
 interface AlertSettingsPanelProps {
   config: MonitoringConfig;

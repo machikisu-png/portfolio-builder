@@ -170,7 +170,7 @@ export default function FundDetailModal({ fund, isSelected, onToggle, onClose }:
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="period" tick={{ fontSize: 12 }} />
                     <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `${v}%`} />
-                    <Tooltip formatter={(v: number) => [`${v.toFixed(1)}%`, 'リターン']} />
+                    <Tooltip formatter={(v: any) => [`${Number(v).toFixed(1)}%`, 'リターン']} />
                     <Bar dataKey="value" radius={[4, 4, 0, 0]}>
                       {returnData.map((entry, idx) => (
                         <Cell key={idx} fill={entry.value >= 0 ? '#3B82F6' : '#EF4444'} />
