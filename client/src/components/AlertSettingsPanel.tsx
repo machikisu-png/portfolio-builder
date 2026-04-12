@@ -7,7 +7,7 @@ interface AlertSettingsPanelProps {
 
 const frequencyOptions: Array<{ value: MonitoringConfig['frequency']; label: string; desc: string }> = [
   { value: 'monthly', label: '毎月', desc: '月1回チェック' },
-  { value: 'semiannual', label: '半年', desc: '6ヶ月ごとにチェック' },
+  { value: 'semiannual', label: '6ヶ月', desc: '6ヶ月ごとにチェック' },
   { value: 'annual', label: '1年', desc: '年1回チェック' },
 ];
 
