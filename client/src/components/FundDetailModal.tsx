@@ -78,7 +78,7 @@ export default function FundDetailModal({ fund, isSelected, onToggle, onClose }:
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto mx-4"
+        className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto mx-2 sm:mx-4"
         onClick={e => e.stopPropagation()}
       >
         {/* ヘッダー */}

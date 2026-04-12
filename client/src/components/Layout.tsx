@@ -8,37 +8,39 @@ interface LayoutProps {
 }
 
 const tabs = [
-  { id: 'search', label: 'ファンド検索' },
-  { id: 'portfolio', label: 'ポートフォリオ構築' },
-  { id: 'myportfolio', label: 'マイポートフォリオ' },
-  { id: 'monitoring', label: 'モニタリング' },
+  { id: 'search', label: 'ファンド検索', shortLabel: '検索' },
+  { id: 'portfolio', label: 'ポートフォリオ構築', shortLabel: '構築' },
+  { id: 'myportfolio', label: 'マイポートフォリオ', shortLabel: 'マイPF' },
+  { id: 'monitoring', label: 'モニタリング', shortLabel: '監視' },
 ];
 
 export default function Layout({ children, activeTab, onTabChange, alertCount }: LayoutProps) {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <h1 className="text-xl font-bold text-gray-900">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-14 sm:h-16">
+            <h1 className="text-base sm:text-xl font-bold text-gray-900 truncate">
               投信ポートフォリオビルダー
             </h1>
-            <span className="text-sm text-gray-500">個人資産運用ツール</span>
+            <span className="text-xs sm:text-sm text-gray-500 hidden sm:block">個人資産運用ツール</span>
           </div>
-          <nav className="flex space-x-1 -mb-px">
+          {/* タブ: スマホではスクロール可能に */}
+          <nav className="flex -mb-px overflow-x-auto scrollbar-hide">
             {tabs.map(tab => (
               <button
                 key={tab.id}
                 onClick={() => onTabChange(tab.id)}
-                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                className={`px-2.5 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex-shrink-0 ${
                   activeTab === tab.id
                     ? 'border-blue-600 text-blue-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                {tab.label}
+                <span className="hidden sm:inline">{tab.label}</span>
+                <span className="sm:hidden">{tab.shortLabel}</span>
                 {tab.id === 'monitoring' && alertCount !== undefined && alertCount > 0 && (
-                  <span className="ml-1.5 inline-flex items-center justify-center w-5 h-5 text-[10px] font-bold text-white bg-red-500 rounded-full">
+                  <span className="ml-1 inline-flex items-center justify-center w-4 h-4 sm:w-5 sm:h-5 text-[9px] sm:text-[10px] font-bold text-white bg-red-500 rounded-full">
                     {alertCount}
                   </span>
                 )}
@@ -47,7 +49,7 @@ export default function Layout({ children, activeTab, onTabChange, alertCount }:
           </nav>
         </div>
       </header>
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6">
         {children}
       </main>
     </div>
