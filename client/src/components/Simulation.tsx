@@ -310,7 +310,9 @@ export default function Simulation({ portfolioItems, savedAge, onAgeChange, pres
             {hasAge && <span className="text-sm font-normal text-gray-400 ml-2">（{currentAge}歳〜{currentAge + years}歳）</span>}
           </h3>
           <p className="text-xs text-gray-500 mb-3">
-            モンテカルロシミュレーション（1,000回試行）に基づく25%/50%/75%パーセンタイル
+            {simMode === 'spreadsheet'
+              ? 'FV複利計算（計算表方式）に基づく標準/楽観/悲観シナリオ'
+              : 'モンテカルロシミュレーション（1,000回試行）に基づく25%/50%/75%パーセンタイル'}
           </p>
           <ResponsiveContainer width="100%" height={400}>
             <AreaChart data={chartData} margin={{ top: 10, right: 30, bottom: 20, left: 20 }}>
