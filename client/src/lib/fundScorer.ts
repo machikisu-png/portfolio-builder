@@ -282,43 +282,19 @@ function getLongTermReturn(fund: Fund): number {
   return 0;
 }
 
-// カテゴリ間の相関係数（分散効果の計算用）
-const categoryCorrelation: Record<string, Record<string, number>> = {
-  '国内株式':   { '国内株式': 1.0, '先進国株式': 0.6, '新興国株式': 0.5, '全世界株式': 0.65, '国内債券': -0.2, '海外債券': 0.1, '新興国債券': 0.3, 'REIT': 0.4, 'コモディティ': 0.1, 'バランス型': 0.5 },
-  '先進国株式': { '先進国株式': 1.0, '新興国株式': 0.7, '全世界株式': 0.95, '国内債券': -0.1, '海外債券': 0.2, '新興国債券': 0.4, 'REIT': 0.5, 'コモディティ': 0.15, 'バランス型': 0.6 },
-  '新興国株式': { '新興国株式': 1.0, '全世界株式': 0.8, '国内債券': -0.1, '海外債券': 0.3, '新興国債券': 0.5, 'REIT': 0.4, 'コモディティ': 0.2, 'バランス型': 0.5 },
-  '国内債券':   { '国内債券': 1.0, '海外債券': 0.3, '新興国債券': 0.2, 'REIT': 0.05, 'コモディティ': 0.0, 'バランス型': 0.3 },
-  '海外債券':   { '海外債券': 1.0, '新興国債券': 0.6, 'REIT': 0.2, 'コモディティ': 0.1, 'バランス型': 0.4 },
-  'REIT':       { 'REIT': 1.0, 'コモディティ': 0.15, 'バランス型': 0.4 },
-  'コモディティ': { 'コモディティ': 1.0, 'バランス型': 0.15 },
-  'バランス型': { 'バランス型': 1.0 },
-};
-
-function getCorrelation(cat1: string, cat2: string): number {
-  return categoryCorrelation[cat1]?.[cat2] ?? categoryCorrelation[cat2]?.[cat1] ?? 0.3;
-}
-
 /**
- * ポートフォリオ全体の加重リターン/リスクを計算（相関考慮）
+ * ポートフォリオ全体の加重リターン/リスクを計算
+ * 計算表方式: リスク = 各資産の標準偏差×2の加重合算
  */
 function calcPortfolioMetrics(items: Array<{ fund: Fund; weight: number }>): { ret: number; risk: number } {
   let ret = 0;
+  let risk = 0;
   for (const item of items) {
     ret += item.weight * getLongTermReturn(item.fund);
+    const sd = item.fund.stdDev ?? categoryRiskBenchmark[item.fund.category] ?? 15;
+    risk += item.weight * sd * 2; // 標準偏差×2（2σ）= 計算表方式
   }
-
-  // σ² = ΣΣ wi*wj*σi*σj*ρij （分散効果を反映）
-  let variance = 0;
-  for (const a of items) {
-    for (const b of items) {
-      const sa = a.fund.stdDev ?? categoryRiskBenchmark[a.fund.category] ?? 15;
-      const sb = b.fund.stdDev ?? categoryRiskBenchmark[b.fund.category] ?? 15;
-      const corr = getCorrelation(a.fund.category, b.fund.category);
-      variance += a.weight * b.weight * sa * sb * corr;
-    }
-  }
-
-  return { ret, risk: Math.sqrt(Math.max(variance, 0)) };
+  return { ret, risk };
 }
 
 /**

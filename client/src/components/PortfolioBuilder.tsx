@@ -238,38 +238,15 @@ export default function PortfolioBuilder({ selectedFunds, allFunds, onUpdateWeig
               const ret = item.fund.return10y ?? item.fund.return5y ?? item.fund.return3y ?? item.fund.return1y ?? 0;
               return sum + item.weight * ret;
             }, 0);
-            // ポートフォリオリスク: 相関を考慮した分散計算
+            // 計算表方式: 各資産の標準偏差×2の加重合算
             const actualRisk = (() => {
-              const n = selectedFunds.length;
-              // カテゴリ間の相関係数マトリクス
-              const corrMap: Record<string, Record<string, number>> = {
-                '国内株式':   { '国内株式': 1.0, '先進国株式': 0.6, '新興国株式': 0.5, '全世界株式': 0.65, '国内債券': -0.2, '海外債券': 0.1, '新興国債券': 0.3, 'REIT': 0.4, 'コモディティ': 0.1, 'バランス型': 0.5 },
-                '先進国株式': { '国内株式': 0.6, '先進国株式': 1.0, '新興国株式': 0.7, '全世界株式': 0.95, '国内債券': -0.1, '海外債券': 0.2, '新興国債券': 0.4, 'REIT': 0.5, 'コモディティ': 0.15, 'バランス型': 0.6 },
-                '新興国株式': { '国内株式': 0.5, '先進国株式': 0.7, '新興国株式': 1.0, '全世界株式': 0.8, '国内債券': -0.1, '海外債券': 0.3, '新興国債券': 0.5, 'REIT': 0.4, 'コモディティ': 0.2, 'バランス型': 0.5 },
-                '全世界株式': { '国内株式': 0.65, '先進国株式': 0.95, '新興国株式': 0.8, '全世界株式': 1.0, '国内債券': -0.1, '海外債券': 0.2, '新興国債券': 0.4, 'REIT': 0.5, 'コモディティ': 0.15, 'バランス型': 0.6 },
-                '国内債券':   { '国内株式': -0.2, '先進国株式': -0.1, '新興国株式': -0.1, '全世界株式': -0.1, '国内債券': 1.0, '海外債券': 0.3, '新興国債券': 0.2, 'REIT': 0.05, 'コモディティ': 0.0, 'バランス型': 0.3 },
-                '海外債券':   { '国内株式': 0.1, '先進国株式': 0.2, '新興国株式': 0.3, '全世界株式': 0.2, '国内債券': 0.3, '海外債券': 1.0, '新興国債券': 0.6, 'REIT': 0.2, 'コモディティ': 0.1, 'バランス型': 0.4 },
-                '新興国債券': { '国内株式': 0.3, '先進国株式': 0.4, '新興国株式': 0.5, '全世界株式': 0.4, '国内債券': 0.2, '海外債券': 0.6, '新興国債券': 1.0, 'REIT': 0.3, 'コモディティ': 0.2, 'バランス型': 0.4 },
-                'REIT':       { '国内株式': 0.4, '先進国株式': 0.5, '新興国株式': 0.4, '全世界株式': 0.5, '国内債券': 0.05, '海外債券': 0.2, '新興国債券': 0.3, 'REIT': 1.0, 'コモディティ': 0.15, 'バランス型': 0.4 },
-                'コモディティ': { '国内株式': 0.1, '先進国株式': 0.15, '新興国株式': 0.2, '全世界株式': 0.15, '国内債券': 0.0, '海外債券': 0.1, '新興国債券': 0.2, 'REIT': 0.15, 'コモディティ': 1.0, 'バランス型': 0.15 },
-                'バランス型': { '国内株式': 0.5, '先進国株式': 0.6, '新興国株式': 0.5, '全世界株式': 0.6, '国内債券': 0.3, '海外債券': 0.4, '新興国債券': 0.4, 'REIT': 0.4, 'コモディティ': 0.15, 'バランス型': 1.0 },
-              };
-              const getCorr = (c1: string, c2: string) => corrMap[c1]?.[c2] ?? corrMap[c2]?.[c1] ?? 0.3;
               const catRiskDefault: Record<string, number> = { '国内株式': 16, '先進国株式': 17, '新興国株式': 20, '全世界株式': 15, '国内債券': 2, '海外債券': 8, '新興国債券': 12, 'REIT': 17, 'コモディティ': 16, 'バランス型': 10 };
-
-              // σ² = ΣΣ wi*wj*σi*σj*ρij
-              let variance = 0;
-              for (let i = 0; i < n; i++) {
-                for (let j = 0; j < n; j++) {
-                  const wi = selectedFunds[i].weight;
-                  const wj = selectedFunds[j].weight;
-                  const si = selectedFunds[i].fund.stdDev ?? catRiskDefault[selectedFunds[i].fund.category] ?? 15;
-                  const sj = selectedFunds[j].fund.stdDev ?? catRiskDefault[selectedFunds[j].fund.category] ?? 15;
-                  const corr = getCorr(selectedFunds[i].fund.category, selectedFunds[j].fund.category);
-                  variance += wi * wj * si * sj * corr;
-                }
+              let totalRisk = 0;
+              for (const item of selectedFunds) {
+                const sd = item.fund.stdDev ?? catRiskDefault[item.fund.category] ?? 15;
+                totalRisk += item.weight * sd * 2; // 標準偏差×2（2σ）
               }
-              return Math.sqrt(Math.max(variance, 0));
+              return totalRisk;
             })();
             const returnDiff = actualReturn - preset.expectedReturn;
             const riskDiff = actualRisk - preset.risk;
