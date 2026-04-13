@@ -182,17 +182,19 @@ export default function Simulation({ portfolioItems, savedAge, onAgeChange, pres
             </label>
             <div className="flex items-center gap-2">
               <input
-                type="text"
+                type="number"
                 inputMode="numeric"
                 autoComplete="off"
                 value={currentAge ?? ''}
                 onChange={e => {
-                  const raw = e.target.value.replace(/[^0-9]/g, '');
-                  if (raw === '') { setCurrentAge(null); return; }
-                  setCurrentAge(parseInt(raw));
+                  const v = e.target.value;
+                  if (v === '') { setCurrentAge(null); return; }
+                  setCurrentAge(parseInt(v));
                 }}
+                onFocus={e => e.target.select()}
                 placeholder="35"
-                className="w-full max-w-[120px] border border-gray-300 rounded-lg px-3 py-3 text-right text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
+                style={{ fontSize: '16px' }}
+                className="w-full max-w-[120px] border-2 border-gray-300 rounded-lg px-3 py-3 text-right focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               />
               <span className="text-sm text-gray-500">歳</span>
             </div>
