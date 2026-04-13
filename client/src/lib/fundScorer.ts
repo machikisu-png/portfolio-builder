@@ -478,6 +478,14 @@ export function optimizeFundsForPreset(
       let bestError = Infinity;
 
       for (const c of candidates) {
+        // 為替ヘッジフィルタ: 海外カテゴリでヘッジ設定に合わないファンドをスキップ
+        const overseas = isOverseasCategory(alloc.category);
+        if (overseas) {
+          const hedged = isHedgedFund(c);
+          if (hedgePreference === 'hedged' && !hedged) continue;
+          if (hedgePreference === 'none' && hedged) continue;
+        }
+
         const cReturn = getLongTermReturn(c);
         const cRisk = c.stdDev ?? 15;
         // ポートフォリオ全体のリターン/リスクが目標にどれだけ近づくか
