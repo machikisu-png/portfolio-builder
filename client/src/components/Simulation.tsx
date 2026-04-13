@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, AreaChart } from 'recharts';
 import type { PortfolioItem } from '../lib/types';
-import { calcPortfolioStats, runSimulation } from '../lib/optimizer';
+import { calcPortfolioStats, runSimulation, runSpreadsheetSimulation, type SimMode } from '../lib/optimizer';
 
 interface SimulationProps {
   portfolioItems: PortfolioItem[];
@@ -45,6 +45,7 @@ function getLifeEvents(currentAge: number, years: number): Array<{ age: number; 
 export default function Simulation({ portfolioItems, savedAge, onAgeChange }: SimulationProps) {
   const [monthlyInvestment, setMonthlyInvestment] = useState(30000);
   const [years, setYears] = useState(20);
+  const [simMode, setSimMode] = useState<SimMode>('spreadsheet');
   const currentAge = savedAge;
 
   const setCurrentAge = (age: number | null) => {
@@ -60,6 +61,9 @@ export default function Simulation({ portfolioItems, savedAge, onAgeChange }: Si
 
   const simulation = useMemo(() => {
     if (!stats) return null;
+    if (simMode === 'spreadsheet') {
+      return runSpreadsheetSimulation(monthlyInvestment, years, stats.expectedReturn, stats.risk);
+    }
     return runSimulation(monthlyInvestment, years, stats.expectedReturn, stats.risk);
   }, [monthlyInvestment, years, stats]);
 
@@ -132,6 +136,35 @@ export default function Simulation({ portfolioItems, savedAge, onAgeChange }: Si
 
   return (
     <div className="space-y-4">
+      {/* 計算方式の切替 */}
+      <div className="bg-white rounded-lg shadow p-4">
+        <h3 className="text-sm font-semibold text-gray-700 mb-2">計算方式</h3>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={() => setSimMode('spreadsheet')}
+            className={`p-2.5 rounded-lg border-2 text-left transition-all ${
+              simMode === 'spreadsheet'
+                ? 'border-blue-500 bg-blue-50 text-blue-700'
+                : 'border-gray-200 text-gray-600 hover:border-gray-300'
+            }`}
+          >
+            <div className="font-semibold text-sm">計算表方式</div>
+            <div className="text-[10px] mt-0.5 opacity-80">FV複利計算（確定値）</div>
+          </button>
+          <button
+            onClick={() => setSimMode('montecarlo')}
+            className={`p-2.5 rounded-lg border-2 text-left transition-all ${
+              simMode === 'montecarlo'
+                ? 'border-green-500 bg-green-50 text-green-700'
+                : 'border-gray-200 text-gray-600 hover:border-gray-300'
+            }`}
+          >
+            <div className="font-semibold text-sm">モンテカルロ方式</div>
+            <div className="text-[10px] mt-0.5 opacity-80">1000回試行の確率分布</div>
+          </button>
+        </div>
+      </div>
+
       {/* 入力パラメータ */}
       <div className="bg-white rounded-lg shadow p-4">
         <h3 className="text-lg font-semibold text-gray-800 mb-4">積立条件</h3>

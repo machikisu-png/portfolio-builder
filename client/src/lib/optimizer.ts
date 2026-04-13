@@ -165,6 +165,45 @@ export function generateEfficientFrontier(
   return frontier.sort((a, b) => a.risk - b.risk);
 }
 
+export type SimMode = 'spreadsheet' | 'montecarlo';
+
+// 計算表方式: FV関数（利回り÷10で月次複利）
+export function runSpreadsheetSimulation(
+  monthlyInvestment: number,
+  years: number,
+  expectedReturn: number, // 年率%
+  stdDevPercent: number,  // 年率標準偏差%
+): { months: number[]; optimistic: number[]; expected: number[]; pessimistic: number[]; totalInvested: number[] } {
+  const totalMonths = years * 12;
+  const monthlyRate = expectedReturn / 100 / 10; // 計算表と同じ ÷10
+  const months = Array.from({ length: totalMonths + 1 }, (_, i) => i);
+  const expected: number[] = [0];
+  const optimistic: number[] = [0];
+  const pessimistic: number[] = [0];
+  const totalInvested: number[] = [0];
+
+  let balanceExp = 0;
+  // 楽観: 利回り + 標準偏差分
+  let balanceOpt = 0;
+  const monthlyRateOpt = (expectedReturn + stdDevPercent) / 100 / 10;
+  // 悲観: 利回り - 標準偏差分（最低0）
+  let balancePes = 0;
+  const monthlyRatePes = Math.max(0, (expectedReturn - stdDevPercent)) / 100 / 10;
+
+  for (let m = 1; m <= totalMonths; m++) {
+    balanceExp = (balanceExp + monthlyInvestment) * (1 + monthlyRate);
+    balanceOpt = (balanceOpt + monthlyInvestment) * (1 + monthlyRateOpt);
+    balancePes = (balancePes + monthlyInvestment) * (1 + monthlyRatePes);
+
+    expected.push(Math.round(balanceExp));
+    optimistic.push(Math.round(balanceOpt));
+    pessimistic.push(Math.round(balancePes));
+    totalInvested.push(monthlyInvestment * m);
+  }
+
+  return { months, optimistic, expected, pessimistic, totalInvested };
+}
+
 // モンテカルロ積立シミュレーション
 export function runSimulation(
   monthlyInvestment: number,
@@ -184,7 +223,6 @@ export function runSimulation(
     let balance = 0;
 
     for (let m = 1; m <= totalMonths; m++) {
-      // Box-Muller変換で正規分布乱数
       const u1 = Math.random();
       const u2 = Math.random();
       const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
