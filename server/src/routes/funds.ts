@@ -176,12 +176,16 @@ async function fetchAllFunds(): Promise<Fund[]> {
     console.log(`  バッチ2完了: シャープ+債券 合計${allFunds.length}件`);
     await delay(1500);
 
-    // バッチ3: 追加カテゴリ（REIT、新興国株式）
+    // バッチ3: 追加カテゴリ（REIT、新興国株式、国内株式、先進国株式）
     const batch3 = await Promise.allSettled([
       scrapeMinkabuByCategory('reit', 'REIT', 1),
       scrapeMinkabuByCategory('reit', 'REIT', 2),
       scrapeMinkabuByCategory('emerging', '新興国株式', 1),
       scrapeMinkabuByCategory('emerging', '新興国株式', 2),
+      scrapeMinkabuByCategory('jp_stock', '国内株式', 1),
+      scrapeMinkabuByCategory('jp_stock', '国内株式', 2),
+      scrapeMinkabuByCategory('intl_stock', '先進国株式', 1),
+      scrapeMinkabuByCategory('intl_stock', '先進国株式', 2),
     ]);
 
     for (const result of batch3) {
@@ -194,7 +198,34 @@ async function fetchAllFunds(): Promise<Fund[]> {
       }
     }
 
-    console.log(`  バッチ3完了: REIT+新興国 合計${allFunds.length}件`);
+    console.log(`  バッチ3完了: REIT+新興国+国内株+先進国株 合計${allFunds.length}件`);
+    await delay(1500);
+
+    // バッチ4: バランス型、コモディティ、WealthAdvisor追加ページ
+    const batch4 = await Promise.allSettled([
+      scrapeMinkabuByCategory('balance', 'バランス型', 1),
+      scrapeMinkabuByCategory('balance', 'バランス型', 2),
+      scrapeMinkabuByCategory('commodity', 'コモディティ', 1),
+      scrapeWealthAdvisor(4),
+      scrapeWealthAdvisor(5),
+    ]);
+
+    for (const result of batch4) {
+      if (result.status === 'fulfilled') {
+        for (const f of result.value) {
+          if (!allFunds.some(af => af.name === f.name)) {
+            const isWA = 'return10y' in f;
+            if (isWA) {
+              allFunds.push({ ...f, return10y: (f as any).return10y ?? null, source: 'wealthadvisor', ...defaultExtras, fundSizeMillions: f.totalAssets || null });
+            } else {
+              allFunds.push({ ...f, return10y: null, stdDev: null, source: 'minkabu', ...defaultExtras });
+            }
+          }
+        }
+      }
+    }
+
+    console.log(`  バッチ4完了: バランス+コモディティ+WA追加 合計${allFunds.length}件`);
   } catch (error) {
     console.error('Fund fetch error:', error);
   }
