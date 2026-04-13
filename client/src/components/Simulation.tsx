@@ -65,7 +65,7 @@ export default function Simulation({ portfolioItems, savedAge, onAgeChange }: Si
       return runSpreadsheetSimulation(monthlyInvestment, years, stats.expectedReturn, stats.risk);
     }
     return runSimulation(monthlyInvestment, years, stats.expectedReturn, stats.risk);
-  }, [monthlyInvestment, years, stats]);
+  }, [monthlyInvestment, years, stats, simMode]);
 
   if (portfolioItems.length === 0) {
     return (
@@ -176,15 +176,16 @@ export default function Simulation({ portfolioItems, savedAge, onAgeChange }: Si
             </label>
             <div className="flex items-center gap-2">
               <input
-                type="tel"
+                type="text"
                 inputMode="numeric"
-                pattern="[0-9]*"
                 value={currentAge ?? ''}
                 onChange={e => {
-                  const v = parseInt(e.target.value);
-                  setCurrentAge(isNaN(v) ? null : v);
+                  const raw = e.target.value.replace(/[^0-9]/g, '');
+                  if (raw === '') { setCurrentAge(null); return; }
+                  const v = parseInt(raw);
+                  setCurrentAge(v);
                 }}
-                placeholder="例: 35"
+                placeholder="35"
                 className="w-24 border border-gray-300 rounded px-3 py-2 text-right text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <span className="text-sm text-gray-500">歳</span>
