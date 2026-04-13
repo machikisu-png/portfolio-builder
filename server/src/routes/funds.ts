@@ -92,62 +92,109 @@ async function fetchAllFunds(): Promise<Fund[]> {
 
   console.log('Fetching fund data from sources...');
   const allFunds: Fund[] = [];
+  const defaultExtras = { settlementFrequency: null, distributionAmount: null, fundSizeMillions: null, assetTrend: null as 'up' | 'flat' | 'down' | null, inceptionYear: null, sellers: [] as string[], forexHedge: null as boolean | null };
+  const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
 
   try {
-    // 並行でスクレイピング（株式 + 債券 + シャープ）
-    const [waFunds, mkFunds, mkSharpeFunds, mkJpBonds, mkIntlBonds] = await Promise.allSettled([
+    // バッチ1: WealthAdvisor 3ページ + Minkabuリターン 3ページ
+    const waResults = await Promise.allSettled([
       scrapeWealthAdvisor(1),
+      scrapeWealthAdvisor(2),
+      scrapeWealthAdvisor(3),
+    ]);
+    const mkResults = await Promise.allSettled([
       scrapeMinkabu(1),
-      scrapeMinkabuSharpe(1),
-      scrapeMinkabuByCategory('jp_bond', '国内債券'),
-      scrapeMinkabuByCategory('intl_bond', '海外債券'),
+      scrapeMinkabu(2),
+      scrapeMinkabu(3),
     ]);
 
-    const defaultExtras = { settlementFrequency: null, distributionAmount: null, fundSizeMillions: null, assetTrend: null as 'up' | 'flat' | 'down' | null, inceptionYear: null, sellers: [] as string[], forexHedge: null as boolean | null };
-
-    if (waFunds.status === 'fulfilled') {
-      for (const f of waFunds.value) {
-        allFunds.push({ ...f, return10y: f.return10y ?? null, source: 'wealthadvisor', ...defaultExtras, fundSizeMillions: f.totalAssets || null });
-      }
-    }
-
-    if (mkFunds.status === 'fulfilled') {
-      for (const f of mkFunds.value) {
-        allFunds.push({ ...f, return10y: null, stdDev: null, source: 'minkabu', ...defaultExtras });
-      }
-    }
-
-    // MINKABU 国内債券
-    if (mkJpBonds.status === 'fulfilled') {
-      console.log(`  国内債券: ${mkJpBonds.value.length}件取得`);
-      for (const f of mkJpBonds.value) {
-        if (!allFunds.some(af => af.name === f.name)) {
-          allFunds.push({ ...f, return10y: null, stdDev: null, source: 'minkabu', ...defaultExtras });
+    // WealthAdvisor結果をマージ
+    for (const result of waResults) {
+      if (result.status === 'fulfilled') {
+        for (const f of result.value) {
+          if (!allFunds.some(af => af.name === f.name)) {
+            allFunds.push({ ...f, return10y: f.return10y ?? null, source: 'wealthadvisor', ...defaultExtras, fundSizeMillions: f.totalAssets || null });
+          }
         }
       }
     }
 
-    // MINKABU 国際債券（海外債券・新興国債券）
-    if (mkIntlBonds.status === 'fulfilled') {
-      console.log(`  国際債券: ${mkIntlBonds.value.length}件取得`);
-      for (const f of mkIntlBonds.value) {
-        if (!allFunds.some(af => af.name === f.name)) {
-          allFunds.push({ ...f, return10y: null, stdDev: null, source: 'minkabu', ...defaultExtras });
+    // Minkabuリターン結果をマージ
+    for (const result of mkResults) {
+      if (result.status === 'fulfilled') {
+        for (const f of result.value) {
+          if (!allFunds.some(af => af.name === f.name)) {
+            allFunds.push({ ...f, return10y: null, stdDev: null, source: 'minkabu', ...defaultExtras });
+          }
         }
       }
     }
 
-    // MINKABUシャープレシオデータをマージ
-    if (mkSharpeFunds.status === 'fulfilled') {
-      for (const sf of mkSharpeFunds.value) {
-        const existing = allFunds.find(f => f.name === sf.name && f.source === 'minkabu');
-        if (existing) {
-          existing.sharpeRatio = sf.sharpeRatio;
-        } else {
-          allFunds.push({ ...sf, return10y: null, stdDev: null, source: 'minkabu', ...defaultExtras });
+    console.log(`  バッチ1完了: WA+MK リターン ${allFunds.length}件`);
+    await delay(1500);
+
+    // バッチ2: シャープレシオ 3ページ + カテゴリ別（債券）
+    const batch2 = await Promise.allSettled([
+      scrapeMinkabuSharpe(1),
+      scrapeMinkabuSharpe(2),
+      scrapeMinkabuSharpe(3),
+      scrapeMinkabuByCategory('jp_bond', '国内債券', 1),
+      scrapeMinkabuByCategory('jp_bond', '国内債券', 2),
+      scrapeMinkabuByCategory('intl_bond', '海外債券', 1),
+      scrapeMinkabuByCategory('intl_bond', '海外債券', 2),
+    ]);
+
+    // シャープレシオデータをマージ
+    for (let i = 0; i < 3; i++) {
+      const result = batch2[i];
+      if (result.status === 'fulfilled') {
+        for (const sf of result.value) {
+          const existing = allFunds.find(f => f.name === sf.name);
+          if (existing) {
+            existing.sharpeRatio = sf.sharpeRatio;
+          } else {
+            allFunds.push({ ...sf, return10y: null, stdDev: null, source: 'minkabu', ...defaultExtras });
+          }
         }
       }
     }
+
+    // カテゴリ別債券データをマージ
+    for (let i = 3; i < 7; i++) {
+      const result = batch2[i];
+      if (result.status === 'fulfilled') {
+        const label = i < 5 ? '国内債券' : '国際債券';
+        console.log(`  ${label} p${i < 5 ? i - 2 : i - 4}: ${result.value.length}件取得`);
+        for (const f of result.value) {
+          if (!allFunds.some(af => af.name === f.name)) {
+            allFunds.push({ ...f, return10y: null, stdDev: null, source: 'minkabu', ...defaultExtras });
+          }
+        }
+      }
+    }
+
+    console.log(`  バッチ2完了: シャープ+債券 合計${allFunds.length}件`);
+    await delay(1500);
+
+    // バッチ3: 追加カテゴリ（REIT、新興国株式）
+    const batch3 = await Promise.allSettled([
+      scrapeMinkabuByCategory('reit', 'REIT', 1),
+      scrapeMinkabuByCategory('reit', 'REIT', 2),
+      scrapeMinkabuByCategory('emerging', '新興国株式', 1),
+      scrapeMinkabuByCategory('emerging', '新興国株式', 2),
+    ]);
+
+    for (const result of batch3) {
+      if (result.status === 'fulfilled') {
+        for (const f of result.value) {
+          if (!allFunds.some(af => af.name === f.name)) {
+            allFunds.push({ ...f, return10y: null, stdDev: null, source: 'minkabu', ...defaultExtras });
+          }
+        }
+      }
+    }
+
+    console.log(`  バッチ3完了: REIT+新興国 合計${allFunds.length}件`);
   } catch (error) {
     console.error('Fund fetch error:', error);
   }

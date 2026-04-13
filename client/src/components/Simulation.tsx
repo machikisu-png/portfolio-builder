@@ -8,6 +8,7 @@ interface SimulationProps {
   savedAge: number | null;
   onAgeChange: (age: number | null) => void;
   presetRisk?: number; // プリセットの目標リスク値
+  presetExpectedReturn?: number; // プリセットの目標リターン値
 }
 
 function formatYen(n: number): string {
@@ -43,7 +44,7 @@ function getLifeEvents(currentAge: number, years: number): Array<{ age: number; 
   return events;
 }
 
-export default function Simulation({ portfolioItems, savedAge, onAgeChange, presetRisk }: SimulationProps) {
+export default function Simulation({ portfolioItems, savedAge, onAgeChange, presetRisk, presetExpectedReturn }: SimulationProps) {
   const [monthlyInvestment, setMonthlyInvestment] = useState(30000);
   const [years, setYears] = useState(20);
   const [simMode, setSimMode] = useState<SimMode>('spreadsheet');
@@ -65,12 +66,16 @@ export default function Simulation({ portfolioItems, savedAge, onAgeChange, pres
     const funds = portfolioItems.map(i => i.fund);
     const weights = portfolioItems.map(i => i.weight);
     const base = calcPortfolioStats(funds, weights);
-    // プリセットの目標リスク値があればそちらを使用（計算表と一致）
-    if (presetRisk !== undefined) {
-      return { ...base, risk: presetRisk };
+    // プリセットの目標値があればそちらを使用（計算表と一致）
+    if (presetRisk !== undefined || presetExpectedReturn !== undefined) {
+      return {
+        ...base,
+        risk: presetRisk ?? base.risk,
+        expectedReturn: presetExpectedReturn ?? base.expectedReturn,
+      };
     }
     return base;
-  }, [portfolioItems, presetRisk]);
+  }, [portfolioItems, presetRisk, presetExpectedReturn]);
 
   const simulation = useMemo(() => {
     if (!stats) return null;
