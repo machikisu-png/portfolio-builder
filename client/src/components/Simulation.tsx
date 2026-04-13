@@ -47,10 +47,17 @@ export default function Simulation({ portfolioItems, savedAge, onAgeChange, pres
   const [monthlyInvestment, setMonthlyInvestment] = useState(30000);
   const [years, setYears] = useState(20);
   const [simMode, setSimMode] = useState<SimMode>('spreadsheet');
-  const currentAge = savedAge;
+  const [currentAge, setCurrentAge] = useState<number | null>(savedAge);
 
-  const setCurrentAge = (age: number | null) => {
-    onAgeChange(age);
+  // savedAgeが外部から変わったら同期
+  const prevSavedAge = savedAge;
+  if (prevSavedAge !== null && currentAge === null) {
+    setCurrentAge(prevSavedAge);
+  }
+
+  // 入力確定時に親に通知（blurイベントで）
+  const handleAgeBlur = () => {
+    onAgeChange(currentAge);
   };
 
   const stats = useMemo(() => {
@@ -188,9 +195,9 @@ export default function Simulation({ portfolioItems, savedAge, onAgeChange, pres
                 value={currentAge ?? ''}
                 onChange={e => {
                   const v = e.target.value;
-                  if (v === '') { setCurrentAge(null); return; }
-                  setCurrentAge(parseInt(v));
+                  setCurrentAge(v === '' ? null : parseInt(v));
                 }}
+                onBlur={handleAgeBlur}
                 onFocus={e => e.target.select()}
                 placeholder="35"
                 style={{ fontSize: '16px' }}
