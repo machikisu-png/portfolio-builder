@@ -211,7 +211,7 @@ export default function MyPortfolio({ items, presetId, confirmed, onConfirm, onU
               ポートフォリオを確定するとシミュレーション結果が保証されます。未確定でもプレビューは可能です。
             </div>
           )}
-          <Simulation portfolioItems={items} savedAge={savedAge} onAgeChange={onAgeChange} />
+          <Simulation portfolioItems={items} savedAge={savedAge} onAgeChange={onAgeChange} presetRisk={preset?.risk} />
         </>
       )}
     </div>

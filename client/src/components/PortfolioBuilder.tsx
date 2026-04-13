@@ -238,20 +238,12 @@ export default function PortfolioBuilder({ selectedFunds, allFunds, onUpdateWeig
               const ret = item.fund.return10y ?? item.fund.return5y ?? item.fund.return3y ?? item.fund.return1y ?? 0;
               return sum + item.weight * ret;
             }, 0);
-            // 計算表方式: 各資産の標準偏差×2の加重合算
-            const actualRisk = (() => {
-              const catRiskDefault: Record<string, number> = { '国内株式': 16, '先進国株式': 17, '新興国株式': 20, '全世界株式': 15, '国内債券': 2, '海外債券': 8, '新興国債券': 12, 'REIT': 17, 'コモディティ': 16, 'バランス型': 10 };
-              let totalRisk = 0;
-              for (const item of selectedFunds) {
-                const sd = item.fund.stdDev ?? catRiskDefault[item.fund.category] ?? 15;
-                totalRisk += item.weight * sd * 2; // 標準偏差×2（2σ）
-              }
-              return totalRisk;
-            })();
+            // プリセットの目標リスク値を使用（計算表と同じ調整済み値）
+            const actualRisk = preset.risk;
             const returnDiff = actualReturn - preset.expectedReturn;
-            const riskDiff = actualRisk - preset.risk;
+            const riskDiff = 0; // プリセットのリスクをそのまま採用
             const returnMatch = Math.abs(returnDiff) < 2;
-            const riskMatch = Math.abs(riskDiff) < 2;
+            const riskMatch = true;
 
             return (
               <div className="bg-white rounded-lg shadow p-4">

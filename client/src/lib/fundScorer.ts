@@ -283,16 +283,20 @@ function getLongTermReturn(fund: Fund): number {
 }
 
 /**
- * ポートフォリオ全体の加重リターン/リスクを計算
- * 計算表方式: リスク = 各資産の標準偏差×2の加重合算
+ * ポートフォリオ全体の加重リターンを計算
+ * リスクはプリセット目標値を使用するため、ここではリターンのみ正確に計算
  */
 function calcPortfolioMetrics(items: Array<{ fund: Fund; weight: number }>): { ret: number; risk: number } {
   let ret = 0;
-  let risk = 0;
   for (const item of items) {
     ret += item.weight * getLongTermReturn(item.fund);
-    const sd = item.fund.stdDev ?? categoryRiskBenchmark[item.fund.category] ?? 15;
-    risk += item.weight * sd * 2; // 標準偏差×2（2σ）= 計算表方式
+  }
+  // リスクはプリセット目標値を使うため、ここでは参考値
+  // ファンド選定の比較用にカテゴリベンチマークで概算
+  let risk = 0;
+  for (const item of items) {
+    const sd = categoryRiskBenchmark[item.fund.category] ?? 10;
+    risk += item.weight * sd;
   }
   return { ret, risk };
 }

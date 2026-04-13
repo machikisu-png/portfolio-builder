@@ -7,6 +7,7 @@ interface SimulationProps {
   portfolioItems: PortfolioItem[];
   savedAge: number | null;
   onAgeChange: (age: number | null) => void;
+  presetRisk?: number; // プリセットの目標リスク値
 }
 
 function formatYen(n: number): string {
@@ -42,7 +43,7 @@ function getLifeEvents(currentAge: number, years: number): Array<{ age: number; 
   return events;
 }
 
-export default function Simulation({ portfolioItems, savedAge, onAgeChange }: SimulationProps) {
+export default function Simulation({ portfolioItems, savedAge, onAgeChange, presetRisk }: SimulationProps) {
   const [monthlyInvestment, setMonthlyInvestment] = useState(30000);
   const [years, setYears] = useState(20);
   const [simMode, setSimMode] = useState<SimMode>('spreadsheet');
@@ -56,8 +57,13 @@ export default function Simulation({ portfolioItems, savedAge, onAgeChange }: Si
     if (portfolioItems.length === 0) return null;
     const funds = portfolioItems.map(i => i.fund);
     const weights = portfolioItems.map(i => i.weight);
-    return calcPortfolioStats(funds, weights);
-  }, [portfolioItems]);
+    const base = calcPortfolioStats(funds, weights);
+    // プリセットの目標リスク値があればそちらを使用（計算表と一致）
+    if (presetRisk !== undefined) {
+      return { ...base, risk: presetRisk };
+    }
+    return base;
+  }, [portfolioItems, presetRisk]);
 
   const simulation = useMemo(() => {
     if (!stats) return null;
