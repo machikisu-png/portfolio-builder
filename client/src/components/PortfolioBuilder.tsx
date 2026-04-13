@@ -491,6 +491,8 @@ export default function PortfolioBuilder({ selectedFunds, allFunds, onUpdateWeig
               items={selectedFunds}
               showFrontier={showFrontier}
               frontierData={frontierData}
+              presetReturn={selectedPreset ? portfolioPresets.find(p => p.id === selectedPreset)?.expectedReturn : undefined}
+              presetRisk={selectedPreset ? portfolioPresets.find(p => p.id === selectedPreset)?.risk : undefined}
             />
           </div>
 

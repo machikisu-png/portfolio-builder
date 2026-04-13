@@ -6,6 +6,8 @@ interface PortfolioChartProps {
   items: PortfolioItem[];
   showFrontier?: boolean;
   frontierData?: Array<{ risk: number; return_: number }>;
+  presetReturn?: number;
+  presetRisk?: number;
 }
 
 const COLORS = [
@@ -27,7 +29,7 @@ const categoryColors: Record<string, string> = {
   'その他': '#9CA3AF',
 };
 
-export default function PortfolioChart({ items, showFrontier, frontierData }: PortfolioChartProps) {
+export default function PortfolioChart({ items, showFrontier, frontierData, presetReturn, presetRisk }: PortfolioChartProps) {
   if (items.length === 0) return null;
 
   // ファンド別配分データ
@@ -50,10 +52,15 @@ export default function PortfolioChart({ items, showFrontier, frontierData }: Po
     value: Math.round(value),
   }));
 
-  // ポートフォリオ統計
+  // ポートフォリオ統計（プリセット値があればそちらを使用）
   const funds = items.map(i => i.fund);
   const weights = items.map(i => i.weight);
-  const stats = calcPortfolioStats(funds, weights);
+  const baseStats = calcPortfolioStats(funds, weights);
+  const stats = {
+    expectedReturn: presetReturn ?? baseStats.expectedReturn,
+    risk: presetRisk ?? baseStats.risk,
+    sharpeRatio: presetRisk ? ((presetReturn ?? baseStats.expectedReturn) - 0.1) / presetRisk : baseStats.sharpeRatio,
+  };
 
   return (
     <div className="space-y-6">
