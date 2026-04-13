@@ -352,8 +352,11 @@ function scoreCandidateForTarget(
     }
   }
 
-  // 品質スコアは0-100を0-30に圧縮（副次的な評価）
-  const qualityWeight = Math.round(qualityScore.total * 0.3);
+  // リターン/リスクフィットが十分高い場合（目標に近い）、品質スコアの重みを上げる
+  // フィットが低い場合はフィット優先のまま
+  const fitRatio = fitScore / 200; // 0-1 (1=完全一致)
+  const qualityMultiplier = fitRatio > 0.5 ? 0.8 : 0.3; // フィット良好なら品質重視
+  const qualityWeight = Math.round(qualityScore.total * qualityMultiplier);
 
   return { qualityScore, fitScore, totalScore: fitScore + qualityWeight };
 }
