@@ -178,15 +178,15 @@ export default function Simulation({ portfolioItems, savedAge, onAgeChange }: Si
               <input
                 type="text"
                 inputMode="numeric"
+                autoComplete="off"
                 value={currentAge ?? ''}
                 onChange={e => {
                   const raw = e.target.value.replace(/[^0-9]/g, '');
                   if (raw === '') { setCurrentAge(null); return; }
-                  const v = parseInt(raw);
-                  setCurrentAge(v);
+                  setCurrentAge(parseInt(raw));
                 }}
                 placeholder="35"
-                className="w-24 border border-gray-300 rounded px-3 py-2 text-right text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full max-w-[120px] border border-gray-300 rounded-lg px-3 py-3 text-right text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <span className="text-sm text-gray-500">歳</span>
             </div>
