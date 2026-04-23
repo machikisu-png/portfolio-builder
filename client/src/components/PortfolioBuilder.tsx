@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import type { Fund, PortfolioItem, PortfolioPreset, RiskTolerance } from '../lib/types';
 import { optimizePortfolio, generateEfficientFrontier } from '../lib/optimizer';
 import { useCalcMode } from '../hooks/useCalcMode';
+import { useMonthlyInvestment, formatYen } from '../hooks/useMonthlyInvestment';
 import { scoreFund, optimizeFundsForPreset, scoreLabel, scoreLabels, type ScoreBreakdown } from '../lib/fundScorer';
 import PresetSelector from './PresetSelector';
 import { portfolioPresets } from '../lib/presets';
@@ -62,6 +63,8 @@ function ScoreDetail({ score }: { score: ScoreBreakdown }) {
 
 export default function PortfolioBuilder({ selectedFunds, allFunds, onUpdateWeights, onGoToSimulation, disabled, onPresetChange }: PortfolioBuilderProps) {
   const [calcMode] = useCalcMode();
+  const [monthlyInvestment, setMonthlyInvestmentValue] = useMonthlyInvestment();
+  const [monthlyInput, setMonthlyInput] = useState<string>(String(monthlyInvestment));
   const [riskTolerance] = useState<RiskTolerance>('medium');
   const [showFrontier, setShowFrontier] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
@@ -189,6 +192,55 @@ export default function PortfolioBuilder({ selectedFunds, allFunds, onUpdateWeig
     <div className="space-y-4">
       {/* プリセット選択 */}
       <PresetSelector selectedPreset={selectedPreset} onSelectPreset={handlePresetSelect} />
+
+      {/* 毎月の投資額 */}
+      <div className="bg-white rounded-lg shadow p-4">
+        <h3 className="text-lg font-semibold text-gray-800 mb-2">毎月の投資額</h3>
+        <p className="text-xs text-gray-500 mb-3">入力した金額を各ファンドの配分比率に応じて自動で振り分けます。</p>
+        <div className="flex items-center gap-3">
+          <input
+            type="number"
+            inputMode="numeric"
+            min={1000}
+            step={1000}
+            value={monthlyInput}
+            onChange={e => setMonthlyInput(e.target.value)}
+            onBlur={() => {
+              const n = parseInt(monthlyInput, 10);
+              if (Number.isFinite(n) && n > 0) {
+                setMonthlyInvestmentValue(n);
+                setMonthlyInput(String(n));
+              } else {
+                setMonthlyInput(String(monthlyInvestment));
+              }
+            }}
+            className="w-40 border border-gray-300 rounded-md px-3 py-2 text-right text-base font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+            style={{ fontSize: '16px' }}
+          />
+          <span className="text-sm text-gray-600">円/月</span>
+          <div className="flex gap-1 ml-auto">
+            {[10000, 30000, 50000, 100000].map(v => (
+              <button
+                key={v}
+                onClick={() => {
+                  setMonthlyInvestmentValue(v);
+                  setMonthlyInput(String(v));
+                }}
+                className={`px-2 py-1 text-xs rounded border ${
+                  monthlyInvestment === v
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                {v >= 10000 ? `${v / 10000}万` : `${v}`}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="mt-2 text-xs text-gray-500">
+          年間: <span className="font-semibold text-gray-700">{formatYen(monthlyInvestment * 12)}</span>
+        </div>
+      </div>
 
       {selectedFunds.length > 0 && (
         <>
@@ -404,33 +456,38 @@ export default function PortfolioBuilder({ selectedFunds, allFunds, onUpdateWeig
                           </div>
                         )}
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          step="1"
-                          value={Math.round(item.weight * 100)}
-                          onChange={e => handleWeightChange(index, parseInt(e.target.value))}
-                          className="w-24"
-                        />
-                        <input
-                          type="number"
-                          min="0"
-                          max="100"
-                          step="0.25"
-                          value={Math.round(item.weight * 10000) / 100}
-                          onChange={e => handleWeightChange(index, parseFloat(e.target.value) || 0)}
-                          className="w-20 text-right border border-gray-300 rounded px-2 py-1 text-sm"
-                        />
-                        <span className="text-sm text-gray-500 w-4">%</span>
-                        <button
-                          onClick={() => handleRemoveFund(index)}
-                          className="text-red-400 hover:text-red-600 text-lg ml-1"
-                          title="削除"
-                        >
-                          x
-                        </button>
+                      <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            step="1"
+                            value={Math.round(item.weight * 100)}
+                            onChange={e => handleWeightChange(index, parseInt(e.target.value))}
+                            className="w-24"
+                          />
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.25"
+                            value={Math.round(item.weight * 10000) / 100}
+                            onChange={e => handleWeightChange(index, parseFloat(e.target.value) || 0)}
+                            className="w-20 text-right border border-gray-300 rounded px-2 py-1 text-sm"
+                          />
+                          <span className="text-sm text-gray-500 w-4">%</span>
+                          <button
+                            onClick={() => handleRemoveFund(index)}
+                            className="text-red-400 hover:text-red-600 text-lg ml-1"
+                            title="削除"
+                          >
+                            x
+                          </button>
+                        </div>
+                        <div className="text-xs text-blue-700 font-semibold whitespace-nowrap">
+                          毎月 {Math.round(monthlyInvestment * item.weight).toLocaleString()}円
+                        </div>
                       </div>
                     </div>
                     {/* ファンド差替え（スコア付き） */}

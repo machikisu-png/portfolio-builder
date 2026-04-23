@@ -3,6 +3,7 @@ import { XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area
 import type { PortfolioItem } from '../lib/types';
 import { calcPortfolioStats, runSimulation, runSpreadsheetSimulation, type SimMode } from '../lib/optimizer';
 import { useCalcMode } from '../hooks/useCalcMode';
+import { useMonthlyInvestment } from '../hooks/useMonthlyInvestment';
 
 interface SimulationProps {
   portfolioItems: PortfolioItem[];
@@ -47,7 +48,7 @@ function getLifeEvents(currentAge: number, years: number): Array<{ age: number; 
 
 export default function Simulation({ portfolioItems, savedAge, onAgeChange, presetRisk, presetExpectedReturn }: SimulationProps) {
   const [calcMode] = useCalcMode();
-  const [monthlyInvestment, setMonthlyInvestment] = useState(30000);
+  const [monthlyInvestment, setMonthlyInvestment] = useMonthlyInvestment();
   const [years, setYears] = useState(20);
   const [simMode, setSimMode] = useState<SimMode>('spreadsheet');
   const [currentAge, setCurrentAge] = useState<number | null>(savedAge);
