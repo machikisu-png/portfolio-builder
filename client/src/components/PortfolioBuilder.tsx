@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import type { Fund, PortfolioItem, PortfolioPreset, RiskTolerance } from '../lib/types';
-import { optimizePortfolio, generateEfficientFrontier } from '../lib/optimizer';
+import { optimizePortfolio, generateEfficientFrontier, calcPortfolioStats } from '../lib/optimizer';
 import { scoreFund, optimizeFundsForPreset, scoreLabel, scoreLabels, type ScoreBreakdown } from '../lib/fundScorer';
 import PresetSelector from './PresetSelector';
 import { portfolioPresets } from '../lib/presets';
@@ -234,13 +234,17 @@ export default function PortfolioBuilder({ selectedFunds, allFunds, onUpdateWeig
           {selectedPreset && (() => {
             const preset = portfolioPresets.find(p => p.id === selectedPreset);
             if (!preset || selectedFunds.length === 0) return null;
-            // プリセットの目標値をそのまま使用（計算表と一致）
-            const actualReturn = preset.expectedReturn;
-            const actualRisk = preset.risk;
-            const returnDiff = 0;
-            const riskDiff = 0;
-            const returnMatch = true;
-            const riskMatch = true;
+            // [Excel計算表モード] 実ファンドデータから加重平均で実際値を算出
+            const stats = calcPortfolioStats(
+              selectedFunds.map(i => i.fund),
+              selectedFunds.map(i => i.weight)
+            );
+            const actualReturn = stats.expectedReturn;
+            const actualRisk = stats.risk;
+            const returnDiff = actualReturn - preset.expectedReturn;
+            const riskDiff = actualRisk - preset.risk;
+            const returnMatch = Math.abs(returnDiff) < 1.0;
+            const riskMatch = Math.abs(riskDiff) < 1.0;
 
             return (
               <div className="bg-white rounded-lg shadow p-4">
@@ -488,8 +492,6 @@ export default function PortfolioBuilder({ selectedFunds, allFunds, onUpdateWeig
               items={selectedFunds}
               showFrontier={showFrontier}
               frontierData={frontierData}
-              presetReturn={selectedPreset ? portfolioPresets.find(p => p.id === selectedPreset)?.expectedReturn : undefined}
-              presetRisk={selectedPreset ? portfolioPresets.find(p => p.id === selectedPreset)?.risk : undefined}
             />
           </div>
 

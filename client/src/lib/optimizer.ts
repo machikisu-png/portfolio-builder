@@ -39,26 +39,21 @@ function estimateCorrelation(fund1: Fund, fund2: Fund): number {
 }
 
 // ポートフォリオのリターンとリスクを計算
+// [Excel計算表モード] リスクは相関を無視した単純加重和（ポートフォリオ計算表.xlsx L19=C8%*2 と同じ前提）
 export function calcPortfolioStats(
   funds: Fund[],
   weights: number[]
 ): { expectedReturn: number; risk: number; sharpeRatio: number } {
   const n = funds.length;
   let expectedReturn = 0;
+  let risk = 0;
 
   for (let i = 0; i < n; i++) {
     expectedReturn += weights[i] * getExpectedReturn(funds[i]);
+    // Excel式: 相関を考慮せず、σを単純加重合計（= 相関係数1と同等）
+    risk += weights[i] * getRisk(funds[i]);
   }
 
-  // ポートフォリオの分散を計算
-  let variance = 0;
-  for (let i = 0; i < n; i++) {
-    for (let j = 0; j < n; j++) {
-      const corr = estimateCorrelation(funds[i], funds[j]);
-      variance += weights[i] * weights[j] * getRisk(funds[i]) * getRisk(funds[j]) * corr / 100;
-    }
-  }
-  const risk = Math.sqrt(Math.max(variance, 0)) * 10;
   const riskFreeRate = 0.1; // 無リスク金利
   const sharpeRatio = risk > 0 ? (expectedReturn - riskFreeRate) / risk : 0;
 

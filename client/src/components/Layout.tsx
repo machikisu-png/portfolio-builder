@@ -21,9 +21,9 @@ export default function Layout({ children, activeTab, onTabChange, alertCount }:
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-14 sm:h-16">
             <h1 className="text-base sm:text-xl font-bold text-gray-900 truncate">
-              投信ポートフォリオビルダー
+              投信ポートフォリオビルダー <span className="text-xs font-normal text-blue-600">[計算表モード]</span>
             </h1>
-            <span className="text-xs sm:text-sm text-gray-500 hidden sm:block">個人資産運用ツール</span>
+            <span className="text-xs sm:text-sm text-gray-500 hidden sm:block">Excel計算表準拠版</span>
           </div>
           {/* タブ: スマホではスクロール可能に */}
           <nav className="flex -mb-px overflow-x-auto scrollbar-hide">
