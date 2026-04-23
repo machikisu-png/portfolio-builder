@@ -3,7 +3,7 @@ import type { Fund, PortfolioItem, PortfolioPreset, RiskTolerance } from '../lib
 import { optimizePortfolio, generateEfficientFrontier } from '../lib/optimizer';
 import { useCalcMode } from '../hooks/useCalcMode';
 import { useMonthlyInvestment, formatYen } from '../hooks/useMonthlyInvestment';
-import { scoreFund, optimizeFundsForPreset, scoreLabel, scoreLabels, type ScoreBreakdown } from '../lib/fundScorer';
+import { scoreFund, optimizeFundsForPreset, adjustWeightsToTargetSpreadsheet, scoreLabel, scoreLabels, type ScoreBreakdown } from '../lib/fundScorer';
 import PresetSelector from './PresetSelector';
 import { portfolioPresets } from '../lib/presets';
 import PortfolioChart from './PortfolioChart';
@@ -72,19 +72,41 @@ export default function PortfolioBuilder({ selectedFunds, allFunds, onUpdateWeig
   const [expandedScore, setExpandedScore] = useState<string | null>(null);
 
   // 計算モード変更時: プリセット選択中ならファンド再選定
-  useEffect(() => {
-    if (!selectedPreset || disabled) return;
-    const preset = portfolioPresets.find(p => p.id === selectedPreset);
-    if (!preset) return;
+  // プリセットからファンド選定 → 計算表モードなら重みを目標に合わせて微調整
+  const buildItemsForPreset = (preset: PortfolioPreset, mode: 'mpt' | 'spreadsheet', hedge: 'none' | 'hedged' | 'both'): PortfolioItem[] => {
     const optimized = optimizeFundsForPreset(
       allFunds,
       preset.allocations,
       preset.expectedReturn,
       preset.risk,
-      forexHedge,
-      calcMode,
+      hedge,
+      mode,
     );
-    onUpdateWeights(optimized.map(o => ({ fund: o.fund, weight: o.weight })));
+    let items: PortfolioItem[] = optimized.map(o => ({ fund: o.fund, weight: o.weight }));
+
+    // 合計が100%にならない場合は正規化
+    const totalWeight = items.reduce((sum, item) => sum + item.weight, 0);
+    if (items.length > 0 && Math.abs(totalWeight - 1) > 0.001) {
+      items = items.map(item => ({ ...item, weight: item.weight / totalWeight }));
+    }
+
+    // 計算表モード: 加重和が目標にズレている場合は重みを微調整
+    if (mode === 'spreadsheet' && items.length >= 2) {
+      const adjusted = adjustWeightsToTargetSpreadsheet(
+        items,
+        preset.expectedReturn,
+        preset.risk,
+      );
+      items = adjusted.map(a => ({ fund: a.fund, weight: a.weight }));
+    }
+    return items;
+  };
+
+  useEffect(() => {
+    if (!selectedPreset || disabled) return;
+    const preset = portfolioPresets.find(p => p.id === selectedPreset);
+    if (!preset) return;
+    onUpdateWeights(buildItemsForPreset(preset, calcMode, forexHedge));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [calcMode]);
 
@@ -92,29 +114,7 @@ export default function PortfolioBuilder({ selectedFunds, allFunds, onUpdateWeig
     if (disabled) return;
     setSelectedPreset(preset.id);
     onPresetChange?.(preset.id);
-
-    // プリセットの目標リターン/リスクに合うようにファンドを最適選定（ヘッジ設定 + 計算モード反映）
-    const optimized = optimizeFundsForPreset(
-      allFunds,
-      preset.allocations,
-      preset.expectedReturn,
-      preset.risk,
-      forexHedge,
-      calcMode,
-    );
-
-    const items: PortfolioItem[] = optimized.map(o => ({
-      fund: o.fund,
-      weight: o.weight,
-    }));
-
-    // 合計が100%にならない場合は正���化
-    const totalWeight = items.reduce((sum, item) => sum + item.weight, 0);
-    if (items.length > 0 && Math.abs(totalWeight - 1) > 0.001) {
-      onUpdateWeights(items.map(item => ({ ...item, weight: item.weight / totalWeight })));
-    } else {
-      onUpdateWeights(items);
-    }
+    onUpdateWeights(buildItemsForPreset(preset, calcMode, forexHedge));
   };
 
   const handleWeightChange = (index: number, value: number) => {
@@ -280,8 +280,7 @@ export default function PortfolioBuilder({ selectedFunds, allFunds, onUpdateWeig
                       if (selectedPreset) {
                         const preset = portfolioPresets.find(p => p.id === selectedPreset);
                         if (preset) {
-                          const optimized = optimizeFundsForPreset(allFunds, preset.allocations, preset.expectedReturn, preset.risk, opt.value, calcMode);
-                          onUpdateWeights(optimized.map(o => ({ fund: o.fund, weight: o.weight })));
+                          onUpdateWeights(buildItemsForPreset(preset, calcMode, opt.value));
                         }
                       }
                     }}

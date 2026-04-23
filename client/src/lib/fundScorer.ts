@@ -520,6 +520,79 @@ export function optimizeFundsForPreset(
   return result;
 }
 
+/**
+ * 計算表モード用: 加重和のリターン/リスクを目標に近づけるよう重みを微調整
+ * 各ファンドの重みが maxDeviation 以内で動き、合計=1を維持。
+ * ペア交換で |returnErr| + |riskErr|*2 を最小化する貪欲法。
+ */
+export function adjustWeightsToTargetSpreadsheet(
+  items: Array<{ fund: Fund; weight: number }>,
+  targetReturn: number,
+  targetRisk: number,
+  maxDeviation: number = 0.15, // 元の重みから±15pt以内で動かす
+  step: number = 0.005, // 0.5%単位で調整
+  maxIterations: number = 500,
+): Array<{ fund: Fund; weight: number }> {
+  if (items.length < 2) return items;
+  const base = items.map(i => i.weight);
+  const weights = [...base];
+  const rets = items.map(i => getLongTermReturn(i.fund));
+  const risks = items.map(i => i.fund.stdDev ?? 15);
+
+  const calc = (w: number[]) => {
+    let r = 0, s = 0;
+    for (let i = 0; i < w.length; i++) {
+      r += w[i] * rets[i];
+      s += w[i] * risks[i];
+    }
+    return { r, s };
+  };
+  const error = (w: number[]) => {
+    const { r, s } = calc(w);
+    return Math.abs(r - targetReturn) + Math.abs(s - targetRisk) * 2;
+  };
+
+  let bestErr = error(weights);
+  if (bestErr < 0.1) return items; // 既に十分近い
+
+  for (let iter = 0; iter < maxIterations; iter++) {
+    let improved = false;
+    // 全ペア (i,j) で i→j へ step 移動
+    for (let i = 0; i < weights.length; i++) {
+      for (let j = 0; j < weights.length; j++) {
+        if (i === j) continue;
+        const newWi = weights[i] - step;
+        const newWj = weights[j] + step;
+        // 範囲制約
+        if (newWi < Math.max(0, base[i] - maxDeviation)) continue;
+        if (newWj > Math.min(1, base[j] + maxDeviation)) continue;
+        weights[i] = newWi;
+        weights[j] = newWj;
+        const e = error(weights);
+        if (e < bestErr - 1e-6) {
+          bestErr = e;
+          improved = true;
+        } else {
+          // 戻す
+          weights[i] = newWi + step;
+          weights[j] = newWj - step;
+        }
+        if (bestErr < 0.1) break;
+      }
+      if (bestErr < 0.1) break;
+    }
+    if (!improved) break;
+  }
+
+  // 0.25%単位に丸め、合計=1を保証
+  const rounded = weights.map(w => Math.round(w * 400) / 400);
+  const diff = 1 - rounded.reduce((a, b) => a + b, 0);
+  const maxIdx = rounded.indexOf(Math.max(...rounded));
+  rounded[maxIdx] = Math.round((rounded[maxIdx] + diff) * 400) / 400;
+
+  return items.map((it, i) => ({ fund: it.fund, weight: rounded[i] }));
+}
+
 // スコアのラベル
 export function scoreLabel(total: number): { text: string; color: string } {
   if (total >= 80) return { text: '最適', color: 'text-green-700 bg-green-100' };
