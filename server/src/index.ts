@@ -31,14 +31,21 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
 }));
 
-// CORS（開発時はlocalhost許可、本番は環境変数で制御）
+// CORS（開発時はlocalhost許可、本番は環境変数 + *.vercel.app 全許可）
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',')
   : ['http://localhost:5173', 'http://localhost:5174'];
 
+// Vercel のプレビュー/本番デプロイをすべて許可するための正規表現
+const vercelPattern = /^https:\/\/[a-z0-9-]+\.vercel\.app$/i;
+
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+    if (allowedOrigins.includes(origin) || vercelPattern.test(origin)) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
