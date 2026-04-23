@@ -430,6 +430,8 @@ export function optimizeFundsForPreset(
       if (candidates.length > 0) break;
     }
     if (candidates.length === 0) candidates = available;
+    // 候補ゼロ（対象カテゴリのファンドが未取得等）の場合は、このスロットをスキップ
+    if (candidates.length === 0) continue;
 
     const idealReturn = categoryReturnBenchmark[alloc.category] ?? targetReturn;
     const idealRisk = categoryRiskBenchmark[alloc.category] ?? targetRisk;
