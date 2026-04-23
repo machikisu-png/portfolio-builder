@@ -14,13 +14,17 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import zlib from 'zlib';
 import { initDB } from './db';
-import fundsRouter from './routes/funds';
+import fundsRouter, { startBackgroundScrape } from './routes/funds';
 import authRouter from './routes/auth';
 import portfolioRouter from './routes/portfolio';
 
 // DB初期化
 initDB();
+
+// 起動後に全ファンドスクレイピング（非同期・非ブロッキング）
+setTimeout(() => startBackgroundScrape(), 1000);
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -63,6 +67,28 @@ const apiLimiter = rateLimit({
 });
 
 app.use(express.json({ limit: '1mb' })); // ボディサイズ制限
+
+// gzip圧縮（1KB超のレスポンスのみ）
+app.use((req, res, next) => {
+  const accept = req.headers['accept-encoding'] || '';
+  if (typeof accept !== 'string' || !accept.includes('gzip')) return next();
+  const origJson = res.json.bind(res);
+  res.json = (body: unknown) => {
+    const str = JSON.stringify(body);
+    if (str.length < 1024) return origJson(body);
+    try {
+      const buf = zlib.gzipSync(str);
+      res.setHeader('Content-Encoding', 'gzip');
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.setHeader('Content-Length', String(buf.length));
+      res.end(buf);
+      return res;
+    } catch {
+      return origJson(body);
+    }
+  };
+  next();
+});
 
 // ルーティング
 app.use('/api/auth', apiLimiter, authRouter);

@@ -114,6 +114,46 @@ export async function scrapeWealthAdvisor(page: number = 1): Promise<WealthAdvis
   return funds;
 }
 
+// 全ページ取得（結果が0件になるページまでループ）
+export async function scrapeWealthAdvisorAllPages(
+  opts: { maxPages?: number; delayMs?: number } = {},
+): Promise<WealthAdvisorFund[]> {
+  const { maxPages = 50, delayMs = 400 } = opts;
+  const all: WealthAdvisorFund[] = [];
+  const seenIds = new Set<string>();
+  let emptyStreak = 0;
+
+  for (let p = 1; p <= maxPages; p++) {
+    let funds: WealthAdvisorFund[] = [];
+    try {
+      funds = await scrapeWealthAdvisor(p);
+    } catch {
+      funds = [];
+    }
+
+    if (funds.length === 0) {
+      emptyStreak++;
+      if (emptyStreak >= 2) break;
+    } else {
+      emptyStreak = 0;
+    }
+
+    let added = 0;
+    for (const f of funds) {
+      if (!seenIds.has(f.id)) {
+        seenIds.add(f.id);
+        all.push(f);
+        added++;
+      }
+    }
+    if (added === 0 && funds.length > 0) break;
+
+    await new Promise(r => setTimeout(r, delayMs));
+  }
+
+  return all;
+}
+
 function guessCategory(name: string): string {
   if (name.includes('日経') || name.includes('TOPIX') || name.includes('日本株')) return '国内株式';
   if (name.includes('S&P') || name.includes('先進国') || name.includes('米国')) return '先進国株式';

@@ -47,6 +47,19 @@ export function initDB(): Database.Database {
       updated_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (user_id) REFERENCES users(id)
     );
+
+    CREATE TABLE IF NOT EXISTS funds_cache (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      fund_json TEXT NOT NULL,
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS scrape_meta (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
   `);
 
   return db;

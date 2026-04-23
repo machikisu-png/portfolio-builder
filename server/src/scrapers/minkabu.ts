@@ -255,6 +255,51 @@ function guessBondCategory(name: string, defaultCategory: string): string {
   return defaultCategory;
 }
 
+// 全ページ取得（結果が0件になるページまでループ）
+export async function scrapeMinkabuAllPages(
+  kind: 'return' | 'sharpe' | 'category',
+  opts: { fundType?: string; categoryOverride?: string; maxPages?: number; delayMs?: number } = {},
+): Promise<MinkabuFund[]> {
+  const { fundType, categoryOverride, maxPages = 50, delayMs = 400 } = opts;
+  const all: MinkabuFund[] = [];
+  const seenIds = new Set<string>();
+  let emptyStreak = 0;
+
+  for (let p = 1; p <= maxPages; p++) {
+    let funds: MinkabuFund[] = [];
+    try {
+      if (kind === 'return') funds = await scrapeMinkabu(p);
+      else if (kind === 'sharpe') funds = await scrapeMinkabuSharpe(p);
+      else if (kind === 'category' && fundType && categoryOverride)
+        funds = await scrapeMinkabuByCategory(fundType, categoryOverride, p);
+    } catch {
+      funds = [];
+    }
+
+    if (funds.length === 0) {
+      emptyStreak++;
+      if (emptyStreak >= 2) break; // 2ページ連続空なら終了
+    } else {
+      emptyStreak = 0;
+    }
+
+    let added = 0;
+    for (const f of funds) {
+      if (!seenIds.has(f.id)) {
+        seenIds.add(f.id);
+        all.push(f);
+        added++;
+      }
+    }
+    // 新規追加が無くなったら終了
+    if (added === 0 && funds.length > 0) break;
+
+    await new Promise(r => setTimeout(r, delayMs));
+  }
+
+  return all;
+}
+
 function guessCategory(name: string): string {
   if (name.includes('日経') || name.includes('TOPIX') || name.includes('日本株')) return '国内株式';
   if (name.includes('S&P') || name.includes('先進国') || name.includes('米国')) return '先進国株式';
