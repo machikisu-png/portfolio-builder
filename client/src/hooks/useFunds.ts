@@ -2,7 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import type { Fund, SearchFilters } from '../lib/types';
 import { scoreFund } from '../lib/fundScorer';
 
-const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3001/api';
+const isProd = (import.meta as any).env?.PROD;
+const API_BASE = (import.meta as any).env?.VITE_API_URL
+  || (isProd ? 'https://portfolio-builder-api-br7g.onrender.com/api' : 'http://localhost:3001/api');
 
 export function useFunds(filters: SearchFilters) {
   const [funds, setFunds] = useState<Fund[]>([]);

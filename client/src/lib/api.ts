@@ -1,4 +1,7 @@
-const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://localhost:3001/api';
+// 本番ビルド時は Render の API を既定値にする（Vercel Preview で環境変数未設定でも動作させるため）
+const isProd = (import.meta as any).env?.PROD;
+const API_BASE = (import.meta as any).env?.VITE_API_URL
+  || (isProd ? 'https://portfolio-builder-api-br7g.onrender.com/api' : 'http://localhost:3001/api');
 
 function getAccessToken(): string | null {
   return sessionStorage.getItem('access_token');
