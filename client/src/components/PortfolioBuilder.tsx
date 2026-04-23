@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import type { Fund, PortfolioItem, PortfolioPreset, RiskTolerance } from '../lib/types';
 import { optimizePortfolio, generateEfficientFrontier } from '../lib/optimizer';
+import { useCalcMode } from '../hooks/useCalcMode';
 import { scoreFund, optimizeFundsForPreset, scoreLabel, scoreLabels, type ScoreBreakdown } from '../lib/fundScorer';
 import PresetSelector from './PresetSelector';
 import { portfolioPresets } from '../lib/presets';
@@ -60,6 +61,7 @@ function ScoreDetail({ score }: { score: ScoreBreakdown }) {
 }
 
 export default function PortfolioBuilder({ selectedFunds, allFunds, onUpdateWeights, onGoToSimulation, disabled, onPresetChange }: PortfolioBuilderProps) {
+  const [calcMode] = useCalcMode();
   const [riskTolerance] = useState<RiskTolerance>('medium');
   const [showFrontier, setShowFrontier] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
@@ -113,7 +115,7 @@ export default function PortfolioBuilder({ selectedFunds, allFunds, onUpdateWeig
   const handleOptimize = () => {
     setSelectedPreset(null);
     const funds = selectedFunds.map(item => item.fund);
-    const result = optimizePortfolio(funds, riskTolerance);
+    const result = optimizePortfolio(funds, riskTolerance, 10000, calcMode);
     const updated = selectedFunds.map((item, i) => ({
       ...item,
       weight: result.weights[i] || 0,
@@ -148,8 +150,8 @@ export default function PortfolioBuilder({ selectedFunds, allFunds, onUpdateWeig
   const frontierData = useMemo(() => {
     if (!showFrontier || selectedFunds.length < 2) return [];
     const funds = selectedFunds.map(i => i.fund);
-    return generateEfficientFrontier(funds);
-  }, [showFrontier, selectedFunds]);
+    return generateEfficientFrontier(funds, 50, 5000, calcMode);
+  }, [showFrontier, selectedFunds, calcMode]);
 
   // 代替ファンド（スコア順）
   const alternativeFunds = useMemo(() => {

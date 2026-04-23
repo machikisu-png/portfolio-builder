@@ -1,4 +1,5 @@
 import { type ReactNode } from 'react';
+import { useCalcMode } from '../hooks/useCalcMode';
 
 interface LayoutProps {
   children: ReactNode;
@@ -15,15 +16,43 @@ const tabs = [
 ];
 
 export default function Layout({ children, activeTab, onTabChange, alertCount }: LayoutProps) {
+  const [calcMode, setMode] = useCalcMode();
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-14 sm:h-16">
+          <div className="flex items-center justify-between h-14 sm:h-16 gap-2">
             <h1 className="text-base sm:text-xl font-bold text-gray-900 truncate">
               投信ポートフォリオビルダー
             </h1>
-            <span className="text-xs sm:text-sm text-gray-500 hidden sm:block">個人資産運用ツール</span>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {/* 計算モード切替 */}
+              <div
+                className="inline-flex rounded-md border border-gray-300 overflow-hidden text-[10px] sm:text-xs"
+                title="リターン/リスクの計算式を切り替えます"
+              >
+                <button
+                  onClick={() => setMode('mpt')}
+                  className={`px-2 sm:px-3 py-1 font-medium transition-colors ${
+                    calcMode === 'mpt'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-white text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  MPT
+                </button>
+                <button
+                  onClick={() => setMode('spreadsheet')}
+                  className={`px-2 sm:px-3 py-1 font-medium transition-colors ${
+                    calcMode === 'spreadsheet'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-white text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  計算表
+                </button>
+              </div>
+            </div>
           </div>
           {/* タブ: スマホではスクロール可能に */}
           <nav className="flex -mb-px overflow-x-auto scrollbar-hide">

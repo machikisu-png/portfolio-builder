@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, AreaChart } from 'recharts';
 import type { PortfolioItem } from '../lib/types';
 import { calcPortfolioStats, runSimulation, runSpreadsheetSimulation, type SimMode } from '../lib/optimizer';
+import { useCalcMode } from '../hooks/useCalcMode';
 
 interface SimulationProps {
   portfolioItems: PortfolioItem[];
@@ -45,6 +46,7 @@ function getLifeEvents(currentAge: number, years: number): Array<{ age: number; 
 }
 
 export default function Simulation({ portfolioItems, savedAge, onAgeChange, presetRisk, presetExpectedReturn }: SimulationProps) {
+  const [calcMode] = useCalcMode();
   const [monthlyInvestment, setMonthlyInvestment] = useState(30000);
   const [years, setYears] = useState(20);
   const [simMode, setSimMode] = useState<SimMode>('spreadsheet');
@@ -65,7 +67,7 @@ export default function Simulation({ portfolioItems, savedAge, onAgeChange, pres
     if (portfolioItems.length === 0) return null;
     const funds = portfolioItems.map(i => i.fund);
     const weights = portfolioItems.map(i => i.weight);
-    const base = calcPortfolioStats(funds, weights);
+    const base = calcPortfolioStats(funds, weights, calcMode);
     // プリセットの目標値があればそちらを使用（計算表と一致）
     if (presetRisk !== undefined || presetExpectedReturn !== undefined) {
       return {
@@ -75,7 +77,7 @@ export default function Simulation({ portfolioItems, savedAge, onAgeChange, pres
       };
     }
     return base;
-  }, [portfolioItems, presetRisk, presetExpectedReturn]);
+  }, [portfolioItems, presetRisk, presetExpectedReturn, calcMode]);
 
   const simulation = useMemo(() => {
     if (!stats) return null;

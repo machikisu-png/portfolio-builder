@@ -1,6 +1,7 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, ScatterChart, Scatter, XAxis, YAxis, CartesianGrid } from 'recharts';
 import type { PortfolioItem } from '../lib/types';
 import { calcPortfolioStats } from '../lib/optimizer';
+import { useCalcMode } from '../hooks/useCalcMode';
 
 interface PortfolioChartProps {
   items: PortfolioItem[];
@@ -30,6 +31,7 @@ const categoryColors: Record<string, string> = {
 };
 
 export default function PortfolioChart({ items, showFrontier, frontierData, presetReturn, presetRisk }: PortfolioChartProps) {
+  const [calcMode] = useCalcMode();
   if (items.length === 0) return null;
 
   // ファンド別配分データ
@@ -55,7 +57,7 @@ export default function PortfolioChart({ items, showFrontier, frontierData, pres
   // ポートフォリオ統計（プリセット値があればそちらを使用）
   const funds = items.map(i => i.fund);
   const weights = items.map(i => i.weight);
-  const baseStats = calcPortfolioStats(funds, weights);
+  const baseStats = calcPortfolioStats(funds, weights, calcMode);
   const stats = {
     expectedReturn: presetReturn ?? baseStats.expectedReturn,
     risk: presetRisk ?? baseStats.risk,

@@ -38,27 +38,55 @@ function estimateCorrelation(fund1: Fund, fund2: Fund): number {
   return 0.3;
 }
 
+// 計算モード: 'mpt' = Markowitz(相関考慮) / 'spreadsheet' = Excel計算表(相関無視)
+export type CalcMode = 'mpt' | 'spreadsheet';
+
+const CALC_MODE_KEY = 'calcMode';
+export function getCalcMode(): CalcMode {
+  if (typeof window === 'undefined') return 'mpt';
+  const v = localStorage.getItem(CALC_MODE_KEY);
+  return v === 'spreadsheet' ? 'spreadsheet' : 'mpt';
+}
+export function setCalcMode(mode: CalcMode): void {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(CALC_MODE_KEY, mode);
+    window.dispatchEvent(new CustomEvent('calcmodechange', { detail: mode }));
+  }
+}
+
 // ポートフォリオのリターンとリスクを計算
+// mode 省略時は localStorage の設定を参照
 export function calcPortfolioStats(
   funds: Fund[],
-  weights: number[]
+  weights: number[],
+  mode?: CalcMode
 ): { expectedReturn: number; risk: number; sharpeRatio: number } {
   const n = funds.length;
+  const m: CalcMode = mode ?? getCalcMode();
   let expectedReturn = 0;
 
   for (let i = 0; i < n; i++) {
     expectedReturn += weights[i] * getExpectedReturn(funds[i]);
   }
 
-  // ポートフォリオの分散を計算
-  let variance = 0;
-  for (let i = 0; i < n; i++) {
-    for (let j = 0; j < n; j++) {
-      const corr = estimateCorrelation(funds[i], funds[j]);
-      variance += weights[i] * weights[j] * getRisk(funds[i]) * getRisk(funds[j]) * corr / 100;
+  let risk = 0;
+  if (m === 'spreadsheet') {
+    // [Excel計算表モード] σの単純加重和（相関無視）
+    for (let i = 0; i < n; i++) {
+      risk += weights[i] * getRisk(funds[i]);
     }
+  } else {
+    // [MPTモード] Markowitz分散共分散行列
+    let variance = 0;
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        const corr = estimateCorrelation(funds[i], funds[j]);
+        variance += weights[i] * weights[j] * getRisk(funds[i]) * getRisk(funds[j]) * corr / 100;
+      }
+    }
+    risk = Math.sqrt(Math.max(variance, 0)) * 10;
   }
-  const risk = Math.sqrt(Math.max(variance, 0)) * 10;
+
   const riskFreeRate = 0.1; // 無リスク金利
   const sharpeRatio = risk > 0 ? (expectedReturn - riskFreeRate) / risk : 0;
 
@@ -76,14 +104,15 @@ function randomWeights(n: number): number[] {
 export function optimizePortfolio(
   funds: Fund[],
   riskTolerance: RiskTolerance,
-  iterations: number = 10000
+  iterations: number = 10000,
+  mode?: CalcMode
 ): OptimizationResult {
   const n = funds.length;
   if (n === 0) {
     return { weights: [], expectedReturn: 0, risk: 0, sharpeRatio: 0 };
   }
   if (n === 1) {
-    const stats = calcPortfolioStats(funds, [1]);
+    const stats = calcPortfolioStats(funds, [1], mode);
     return { weights: [1], ...stats };
   }
 
@@ -97,11 +126,11 @@ export function optimizePortfolio(
 
   let bestScore = -Infinity;
   let bestWeights = Array(n).fill(1 / n);
-  let bestStats = calcPortfolioStats(funds, bestWeights);
+  let bestStats = calcPortfolioStats(funds, bestWeights, mode);
 
   for (let i = 0; i < iterations; i++) {
     const w = randomWeights(n);
-    const stats = calcPortfolioStats(funds, w);
+    const stats = calcPortfolioStats(funds, w, mode);
     // 効用関数: リターン - λ * リスク^2
     const score = stats.expectedReturn - lambda * stats.risk * stats.risk / 100;
 
@@ -128,7 +157,8 @@ export function optimizePortfolio(
 export function generateEfficientFrontier(
   funds: Fund[],
   points: number = 50,
-  iterations: number = 5000
+  iterations: number = 5000,
+  mode?: CalcMode
 ): Array<{ risk: number; return_: number; weights: number[] }> {
   const n = funds.length;
   if (n < 2) return [];
@@ -141,11 +171,11 @@ export function generateEfficientFrontier(
 
     let bestScore = -Infinity;
     let bestWeights = Array(n).fill(1 / n);
-    let bestStats = calcPortfolioStats(funds, bestWeights);
+    let bestStats = calcPortfolioStats(funds, bestWeights, mode);
 
     for (let i = 0; i < iterations; i++) {
       const w = randomWeights(n);
-      const stats = calcPortfolioStats(funds, w);
+      const stats = calcPortfolioStats(funds, w, mode);
       const score = stats.expectedReturn - lambda * stats.risk * stats.risk / 100;
 
       if (score > bestScore) {
