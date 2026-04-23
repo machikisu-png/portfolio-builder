@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import type { Fund, PortfolioItem, PortfolioPreset, RiskTolerance } from '../lib/types';
-import { optimizePortfolio, generateEfficientFrontier } from '../lib/optimizer';
+import { optimizePortfolio, generateEfficientFrontier, calcPortfolioStats } from '../lib/optimizer';
 import { useCalcMode } from '../hooks/useCalcMode';
 import { useMonthlyInvestment, formatYen } from '../hooks/useMonthlyInvestment';
 import { scoreFund, optimizeFundsForPreset, scoreLabel, scoreLabels, type ScoreBreakdown } from '../lib/fundScorer';
@@ -295,13 +295,18 @@ export default function PortfolioBuilder({ selectedFunds, allFunds, onUpdateWeig
           {selectedPreset && (() => {
             const preset = portfolioPresets.find(p => p.id === selectedPreset);
             if (!preset || selectedFunds.length === 0) return null;
-            // プリセットの目標値をそのまま使用（計算表と一致）
-            const actualReturn = preset.expectedReturn;
-            const actualRisk = preset.risk;
-            const returnDiff = 0;
-            const riskDiff = 0;
-            const returnMatch = true;
-            const riskMatch = true;
+            // 実ファンドデータから加重平均で実際値を算出（計算モード反映）
+            const stats = calcPortfolioStats(
+              selectedFunds.map(i => i.fund),
+              selectedFunds.map(i => i.weight),
+              calcMode,
+            );
+            const actualReturn = stats.expectedReturn;
+            const actualRisk = stats.risk;
+            const returnDiff = actualReturn - preset.expectedReturn;
+            const riskDiff = actualRisk - preset.risk;
+            const returnMatch = Math.abs(returnDiff) < 1.0;
+            const riskMatch = Math.abs(riskDiff) < 1.0;
 
             return (
               <div className="bg-white rounded-lg shadow p-4">
