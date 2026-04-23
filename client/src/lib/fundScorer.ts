@@ -408,7 +408,11 @@ export function optimizeFundsForPreset(
   targetReturn: number,
   targetRisk: number,
   hedgePreference: 'none' | 'hedged' | 'both' = 'none',
+  calcMode: 'mpt' | 'spreadsheet' = 'spreadsheet',
 ): Array<{ fund: Fund; weight: number; score: ScoreBreakdown; fitScore: number }> {
+  // calcMode='mpt' は相関考慮で実リスクが目標より小さく出る傾向のため、
+  // 候補評価時のリスクを実効値(0.75倍)に補正してファンド選定を調整
+  const riskEffMultiplier = calcMode === 'mpt' ? 0.75 : 1.0;
   const usedFundIds = new Set<string>();
 
   // レバレッジ・毎月分配等を除外
@@ -471,7 +475,7 @@ export function optimizeFundsForPreset(
       // このスロットの理想リターン: 目標ギャップを考慮
       const othersRet = result.reduce((s, r, j) => j === i ? s : s + r.weight * getLongTermReturn(r.fund), 0);
       const neededReturn = (targetReturn - othersRet) / slot.weight;
-      const othersRisk = result.reduce((s, r, j) => j === i ? s : s + r.weight * (r.fund.stdDev ?? 15), 0);
+      const othersRisk = result.reduce((s, r, j) => j === i ? s : s + r.weight * (r.fund.stdDev ?? 15) * riskEffMultiplier, 0);
       const neededRisk = (targetRisk - othersRisk) / slot.weight;
 
       let bestCandidate = slot.fund;
@@ -487,7 +491,7 @@ export function optimizeFundsForPreset(
         }
 
         const cReturn = getLongTermReturn(c);
-        const cRisk = c.stdDev ?? 15;
+        const cRisk = (c.stdDev ?? 15) * riskEffMultiplier;
         // ポートフォリオ全体のリターン/リスクが目標にどれだけ近づくか
         const newPortRet = othersRet + slot.weight * cReturn;
         const newPortRisk = othersRisk + slot.weight * cRisk;

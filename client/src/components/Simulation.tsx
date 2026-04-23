@@ -69,8 +69,9 @@ export default function Simulation({ portfolioItems, savedAge, onAgeChange, pres
     const funds = portfolioItems.map(i => i.fund);
     const weights = portfolioItems.map(i => i.weight);
     const base = calcPortfolioStats(funds, weights, calcMode);
-    // プリセットの目標値があればそちらを使用（計算表と一致）
-    if (presetRisk !== undefined || presetExpectedReturn !== undefined) {
+    // 計算表モードのみプリセット目標値で上書き（Excel計算表と一致させる目的）
+    // MPTモードでは相関による分散効果を反映した実値を使用
+    if (calcMode === 'spreadsheet' && (presetRisk !== undefined || presetExpectedReturn !== undefined)) {
       return {
         ...base,
         risk: presetRisk ?? base.risk,

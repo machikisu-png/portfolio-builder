@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import type { Fund, PortfolioItem, PortfolioPreset, RiskTolerance } from '../lib/types';
 import { optimizePortfolio, generateEfficientFrontier } from '../lib/optimizer';
 import { useCalcMode } from '../hooks/useCalcMode';
@@ -71,18 +71,36 @@ export default function PortfolioBuilder({ selectedFunds, allFunds, onUpdateWeig
   const [forexHedge, setForexHedge] = useState<'none' | 'hedged' | 'both'>('none');
   const [expandedScore, setExpandedScore] = useState<string | null>(null);
 
-  const handlePresetSelect = (preset: PortfolioPreset) => {
-    if (disabled) return;
-    setSelectedPreset(preset.id);
-    onPresetChange?.(preset.id);
-
-    // プリセットの目標リターン/リスクに合うようにファンドを最適選定（ヘッジ設定反映）
+  // 計算モード変更時: プリセット選択中ならファンド再選定
+  useEffect(() => {
+    if (!selectedPreset || disabled) return;
+    const preset = portfolioPresets.find(p => p.id === selectedPreset);
+    if (!preset) return;
     const optimized = optimizeFundsForPreset(
       allFunds,
       preset.allocations,
       preset.expectedReturn,
       preset.risk,
       forexHedge,
+      calcMode,
+    );
+    onUpdateWeights(optimized.map(o => ({ fund: o.fund, weight: o.weight })));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [calcMode]);
+
+  const handlePresetSelect = (preset: PortfolioPreset) => {
+    if (disabled) return;
+    setSelectedPreset(preset.id);
+    onPresetChange?.(preset.id);
+
+    // プリセットの目標リターン/リスクに合うようにファンドを最適選定（ヘッジ設定 + 計算モード反映）
+    const optimized = optimizeFundsForPreset(
+      allFunds,
+      preset.allocations,
+      preset.expectedReturn,
+      preset.risk,
+      forexHedge,
+      calcMode,
     );
 
     const items: PortfolioItem[] = optimized.map(o => ({
@@ -262,7 +280,7 @@ export default function PortfolioBuilder({ selectedFunds, allFunds, onUpdateWeig
                       if (selectedPreset) {
                         const preset = portfolioPresets.find(p => p.id === selectedPreset);
                         if (preset) {
-                          const optimized = optimizeFundsForPreset(allFunds, preset.allocations, preset.expectedReturn, preset.risk, opt.value);
+                          const optimized = optimizeFundsForPreset(allFunds, preset.allocations, preset.expectedReturn, preset.risk, opt.value, calcMode);
                           onUpdateWeights(optimized.map(o => ({ fund: o.fund, weight: o.weight })));
                         }
                       }
