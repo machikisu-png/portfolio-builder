@@ -7,6 +7,7 @@ import PortfolioBuilder from './components/PortfolioBuilder';
 import MyPortfolio from './components/MyPortfolio';
 import AlertBanner from './components/AlertBanner';
 import AlertSettingsPanel from './components/AlertSettingsPanel';
+import ErrorBoundary from './components/ErrorBoundary';
 import { useAuth } from './hooks/useAuth';
 import { useFunds } from './hooks/useFunds';
 import type { Fund, PortfolioItem, SearchFilters } from './lib/types';
@@ -226,7 +227,7 @@ export default function App() {
       )}
 
       {activeTab === 'portfolio' && (
-        <>
+        <ErrorBoundary resetKey={`portfolio-${presetId ?? 'none'}`}>
           {confirmed && (
             <div className="mb-4 bg-yellow-50 border border-yellow-300 rounded-lg p-3 flex items-center justify-between">
               <span className="text-sm text-yellow-800">ポートフォリオは確定済みです。編集するにはロックを解除してください。</span>
@@ -243,20 +244,22 @@ export default function App() {
             disabled={confirmed}
             onPresetChange={(id) => setPresetId(id)}
           />
-        </>
+        </ErrorBoundary>
       )}
 
       {activeTab === 'myportfolio' && (
-        <MyPortfolio
-          items={selectedFunds}
-          presetId={presetId}
-          confirmed={confirmed}
-          onConfirm={handleConfirm}
-          onUnlock={handleUnlock}
-          onGoToBuilder={() => { setConfirmed(false); setActiveTab('portfolio'); }}
-          savedAge={userAge}
-          onAgeChange={handleAgeChange}
-        />
+        <ErrorBoundary resetKey={`myportfolio-${presetId ?? 'none'}`}>
+          <MyPortfolio
+            items={selectedFunds}
+            presetId={presetId}
+            confirmed={confirmed}
+            onConfirm={handleConfirm}
+            onUnlock={handleUnlock}
+            onGoToBuilder={() => { setConfirmed(false); setActiveTab('portfolio'); }}
+            savedAge={userAge}
+            onAgeChange={handleAgeChange}
+          />
+        </ErrorBoundary>
       )}
 
       {activeTab === 'monitoring' && (

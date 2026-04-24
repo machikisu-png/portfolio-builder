@@ -419,9 +419,11 @@ export function optimizeFundsForPreset(
   const eligibleFunds = allFunds.filter(isEligibleForPreset);
 
   // 第1パス: 各カテゴリで目標に最も近いファンドを初期選定
-  const result: Array<{ fund: Fund; weight: number; score: ScoreBreakdown; fitScore: number }> = [];
+  // 各エントリは allocIndex で対応する allocation を保持
+  const result: Array<{ fund: Fund; weight: number; score: ScoreBreakdown; fitScore: number; allocIndex: number }> = [];
 
-  for (const alloc of allocations) {
+  for (let allocIdx = 0; allocIdx < allocations.length; allocIdx++) {
+    const alloc = allocations[allocIdx];
     const available = eligibleFunds.filter(f => !usedFundIds.has(f.id));
     const fallbackChain = categoryFallbacks[alloc.category] || [[alloc.category]];
     let candidates: Fund[] = [];
@@ -447,7 +449,7 @@ export function optimizeFundsForPreset(
       }
     }
 
-    result.push({ fund: bestFund, weight: alloc.weight, score: bestInfo.qualityScore, fitScore: bestInfo.fitScore });
+    result.push({ fund: bestFund, weight: alloc.weight, score: bestInfo.qualityScore, fitScore: bestInfo.fitScore, allocIndex: allocIdx });
     usedFundIds.add(bestFund.id);
   }
 
@@ -463,7 +465,8 @@ export function optimizeFundsForPreset(
 
     for (let i = 0; i < result.length; i++) {
       const slot = result[i];
-      const alloc = allocations[i];
+      const alloc = allocations[slot.allocIndex];
+      if (!alloc) continue;
       const fallbackChain = categoryFallbacks[alloc.category] || [[alloc.category]];
       let candidates: Fund[] = [];
       for (const matchCats of fallbackChain) {
@@ -511,7 +514,7 @@ export function optimizeFundsForPreset(
         usedFundIds.delete(slot.fund.id);
         usedFundIds.add(bestCandidate.id);
         const info = scoreCandidateForTarget(bestCandidate, neededReturn, neededRisk, hedgePreference, alloc.category);
-        result[i] = { fund: bestCandidate, weight: slot.weight, score: info.qualityScore, fitScore: info.fitScore };
+        result[i] = { fund: bestCandidate, weight: slot.weight, score: info.qualityScore, fitScore: info.fitScore, allocIndex: slot.allocIndex };
         improved = true;
       }
     }

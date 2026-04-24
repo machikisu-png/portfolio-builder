@@ -2,6 +2,8 @@ import { Component, type ReactNode } from 'react';
 
 interface Props {
   children: ReactNode;
+  /** Key that causes the boundary to reset (e.g. current tab id). 値が変わると再マウントしhasErrorをリセット */
+  resetKey?: string | number;
 }
 
 interface State {
@@ -10,51 +12,53 @@ interface State {
 }
 
 /**
- * サイレント自動復旧型 ErrorBoundary
- * - レンダリング中の例外を捕捉してコンソールに記録
- * - UI はエラー画面を出さず、すぐに children の再マウントを試みる
- * - 繰り返し同じエラーが出る場合のみ最小限のメッセージを表示
+ * 軽量インライン型 ErrorBoundary
+ * - タブコンテンツの内側で使うことを想定
+ * - 外側の State（activeTab など）はこの境界の外にあるので保持される
+ * - resetKey が変わった場合は自動的に復帰
  */
 export default class ErrorBoundary extends Component<Props, State> {
   state: State = { hasError: false, error: null };
-  private errorCount = 0;
-  private recoverTimer: ReturnType<typeof setTimeout> | null = null;
 
   static getDerivedStateFromError(error: Error): State {
     return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, info: unknown) {
-    this.errorCount++;
     // eslint-disable-next-line no-console
-    console.error('ErrorBoundary caught (auto-recover):', error, info);
-    // 短時間で自動的に復旧
-    if (this.recoverTimer) clearTimeout(this.recoverTimer);
-    this.recoverTimer = setTimeout(() => {
-      this.setState({ hasError: false, error: null });
-    }, 50);
+    console.error('ErrorBoundary caught:', error, info);
   }
 
-  componentWillUnmount() {
-    if (this.recoverTimer) clearTimeout(this.recoverTimer);
+  componentDidUpdate(prevProps: Props) {
+    if (this.state.hasError && this.props.resetKey !== prevProps.resetKey) {
+      this.setState({ hasError: false, error: null });
+    }
   }
+
+  handleReset = () => {
+    this.setState({ hasError: false, error: null });
+  };
 
   render() {
-    // 復旧中も children を返すことで、ちらつきを最小化
-    // 連続5回以上エラーが続く場合のみ、最低限のメッセージを表示
-    if (this.state.hasError && this.errorCount >= 5) {
+    if (this.state.hasError) {
       return (
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-          <div className="max-w-md w-full bg-white rounded-lg shadow p-5 text-center">
-            <p className="text-sm text-gray-600 mb-3">
-              表示の読み込みに問題が発生しています。ページを再読み込みしてください。
-            </p>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              再読み込み
-            </button>
+        <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-4 my-3">
+          <div className="flex items-start gap-3">
+            <span className="text-yellow-600 text-xl">⚠</span>
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold text-yellow-800 mb-1">
+                この画面の読み込みで問題が発生しました
+              </h3>
+              <p className="text-xs text-yellow-700 mb-2">
+                他のタブは正常です。下のボタンで再表示を試してください。
+              </p>
+              <button
+                onClick={this.handleReset}
+                className="px-3 py-1 text-xs bg-yellow-600 text-white rounded hover:bg-yellow-700"
+              >
+                再表示
+              </button>
+            </div>
           </div>
         </div>
       );
