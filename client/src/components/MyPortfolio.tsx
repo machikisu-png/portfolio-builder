@@ -3,6 +3,8 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import type { PortfolioItem } from '../lib/types';
 import { portfolioPresets } from '../lib/presets';
 import { scoreFund, scoreLabel } from '../lib/fundScorer';
+import { useMonthlyInvestment } from '../hooks/useMonthlyInvestment';
+import { exportPortfolioToExcel } from '../lib/excelExport';
 import Simulation from './Simulation';
 
 interface MyPortfolioProps {
@@ -23,7 +25,23 @@ const COLORS = [
 
 export default function MyPortfolio({ items, presetId, confirmed, onConfirm, onUnlock, onGoToBuilder, savedAge, onAgeChange }: MyPortfolioProps) {
   const [subTab, setSubTab] = useState<'overview' | 'simulation'>('overview');
+  const [exportYears, setExportYears] = useState(20);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [monthlyInvestment] = useMonthlyInvestment();
   const preset = presetId ? portfolioPresets.find(p => p.id === presetId) : null;
+
+  const handleExport = async () => {
+    setExporting(true);
+    setExportError(null);
+    try {
+      await exportPortfolioToExcel(items, monthlyInvestment, exportYears, preset?.name);
+    } catch (e) {
+      setExportError(e instanceof Error ? e.message : 'エクセル出力に失敗しました');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   if (items.length === 0) {
     return (
@@ -114,6 +132,43 @@ export default function MyPortfolio({ items, presetId, confirmed, onConfirm, onU
               </div>
             </div>
           )}
+
+          {/* エクセル出力 */}
+          <div className="bg-white rounded-lg shadow p-4">
+            <h3 className="text-sm font-semibold text-gray-800 mb-2">エクセル計算表に出力</h3>
+            <p className="text-xs text-gray-500 mb-3">
+              「ポートフォリオ計算表.xlsx」のフォーマットに合わせて、選定ファンドの投資額・利回り・標準偏差・ファンド名を埋めてダウンロードします。
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-gray-600">積立年数</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={50}
+                  value={exportYears}
+                  onChange={e => setExportYears(Math.max(1, Math.min(50, parseInt(e.target.value) || 20)))}
+                  className="w-20 border border-gray-300 rounded px-2 py-1 text-right text-sm"
+                />
+                <span className="text-xs text-gray-500">年</span>
+              </div>
+              <div className="text-xs text-gray-500">
+                月額 <span className="font-semibold text-gray-700">{monthlyInvestment.toLocaleString()}円</span>
+                → 総投資額 <span className="font-semibold text-gray-700">{(monthlyInvestment * 12 * exportYears).toLocaleString()}円</span>
+              </div>
+              <button
+                onClick={handleExport}
+                disabled={exporting}
+                className="ml-auto px-4 py-2 bg-green-600 text-white rounded-md text-sm hover:bg-green-700 disabled:bg-gray-300 transition-colors"
+              >
+                {exporting ? '出力中...' : '📊 エクセル出力'}
+              </button>
+            </div>
+            {exportError && (
+              <div className="mt-2 text-xs text-red-600">エラー: {exportError}</div>
+            )}
+          </div>
+
 
           {/* 配分一覧 */}
           <div className="bg-white rounded-lg shadow p-4">
