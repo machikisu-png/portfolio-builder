@@ -125,14 +125,56 @@ export function optimizeWeightsToTarget(
   const errorOf = (ret: number, risk: number) =>
     Math.abs(ret - targetReturn) * 1.2 + Math.abs(risk - targetRisk);
 
-  let bestWeights = initWeights;
+  // 制約: 全ファンドの配分を 0% にしない（最低保証比率）
+  // 元配分が小さいファンドは元配分の半分を下限、それ以外は3%を下限に
+  const minWeight = (idx: number): number => Math.min(initWeights[idx] * 0.5, 0.03);
+  // 元配分からの最大乖離（初期値から ±25pt 以内で動かす）
+  const maxDeviation = 0.25;
+  const bounds = initWeights.map((w, i) => ({
+    lo: Math.max(minWeight(i), w - maxDeviation),
+    hi: Math.min(1, w + maxDeviation),
+  }));
+
+  // 制約を満たす形で重みを生成（元配分を中心に摂動 → クリップ → 正規化）
+  const samplePerturbed = (scale: number): number[] => {
+    const perturbed = initWeights.map((w, i) => {
+      const delta = (Math.random() - 0.5) * 2 * scale; // [-scale, +scale]
+      const v = w + delta;
+      return Math.max(bounds[i].lo, Math.min(bounds[i].hi, v));
+    });
+    const sum = perturbed.reduce((a, b) => a + b, 0);
+    if (sum <= 0) return [...initWeights];
+    // 合計を 1 に正規化しつつ、下限・上限を維持するよう反復調整
+    let w = perturbed.map(v => v / sum);
+    for (let iter = 0; iter < 3; iter++) {
+      let overflow = 0;
+      w = w.map((v, i) => {
+        const clamped = Math.max(bounds[i].lo, Math.min(bounds[i].hi, v));
+        overflow += v - clamped;
+        return clamped;
+      });
+      if (Math.abs(overflow) < 0.001) break;
+      // 余剰/不足を範囲内のファンドに再配分
+      const flexible = w.map((v, i) => ({ i, room: overflow > 0 ? bounds[i].hi - v : v - bounds[i].lo }));
+      const totalRoom = flexible.reduce((s, f) => s + f.room, 0);
+      if (totalRoom > 0.001) {
+        flexible.forEach(f => {
+          w[f.i] += (overflow * f.room) / totalRoom;
+        });
+      }
+    }
+    return w;
+  };
+
+  let bestWeights = [...initWeights];
   let bestStats = initStats;
   let bestError = errorOf(initStats.expectedReturn, initStats.risk);
 
-  // 1/3: 完全ランダム探索（グローバル探索）
-  const randomPhase = Math.floor(iterations / 3);
-  for (let i = 0; i < randomPhase; i++) {
-    const w = randomWeights(n);
+  // 前半: 広めの摂動で全体探索
+  const phase1 = Math.floor(iterations / 2);
+  for (let i = 0; i < phase1; i++) {
+    const scale = 0.15 + Math.random() * 0.15; // 15-30% の摂動
+    const w = samplePerturbed(scale);
     const stats = calcPortfolioStats(funds, w, mode);
     const err = errorOf(stats.expectedReturn, stats.risk);
     if (err < bestError) {
@@ -142,13 +184,17 @@ export function optimizeWeightsToTarget(
     }
   }
 
-  // 2/3: 現在のベストを中心に微調整（ローカル探索）
-  for (let i = randomPhase; i < iterations; i++) {
-    // 既存の配分を中心にノイズを加える
-    const noise = 0.1 + Math.random() * 0.2; // 10-30%の摂動
-    const perturbed = bestWeights.map(w => Math.max(0, w + (Math.random() - 0.5) * noise));
+  // 後半: bestWeights を中心に細かい摂動でローカル最適化
+  for (let i = phase1; i < iterations; i++) {
+    const scale = 0.02 + Math.random() * 0.08; // 2-10% の微調整
+    const perturbed = bestWeights.map((w, j) => {
+      const delta = (Math.random() - 0.5) * 2 * scale;
+      const v = w + delta;
+      return Math.max(bounds[j].lo, Math.min(bounds[j].hi, v));
+    });
     const sum = perturbed.reduce((a, b) => a + b, 0);
-    const w = sum > 0 ? perturbed.map(v => v / sum) : randomWeights(n);
+    if (sum <= 0) continue;
+    const w = perturbed.map(v => v / sum);
     const stats = calcPortfolioStats(funds, w, mode);
     const err = errorOf(stats.expectedReturn, stats.risk);
     if (err < bestError) {
@@ -158,8 +204,11 @@ export function optimizeWeightsToTarget(
     }
   }
 
-  // 重みを1%単位に丸め、合計1を保証
-  const rounded = bestWeights.map(w => Math.round(w * 100) / 100);
+  // 重みを1%単位に丸め、合計1を保証（最低保証比率を維持）
+  const rounded = bestWeights.map((w, i) => {
+    const r = Math.round(w * 100) / 100;
+    return Math.max(Math.round(bounds[i].lo * 100) / 100, r);
+  });
   const diff = 1 - rounded.reduce((a, b) => a + b, 0);
   const maxIdx = rounded.indexOf(Math.max(...rounded));
   rounded[maxIdx] = Math.round((rounded[maxIdx] + diff) * 100) / 100;
