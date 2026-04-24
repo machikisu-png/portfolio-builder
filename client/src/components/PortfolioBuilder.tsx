@@ -70,41 +70,65 @@ export default function PortfolioBuilder({ selectedFunds, allFunds, onUpdateWeig
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
   const [forexHedge, setForexHedge] = useState<'none' | 'hedged' | 'both'>('none');
   const [expandedScore, setExpandedScore] = useState<string | null>(null);
+  const [presetWarning, setPresetWarning] = useState<string | null>(null);
 
   // 計算モード変更時: プリセット選択中ならファンド再選定
-  // プリセットからファンド選定
+  // プリセットからファンド選定（失敗時は空配列を返し、呼び出し側でガード）
   const buildItemsForPreset = (preset: PortfolioPreset, mode: 'mpt' | 'spreadsheet', hedge: 'none' | 'hedged' | 'both'): PortfolioItem[] => {
-    const optimized = optimizeFundsForPreset(
-      allFunds,
-      preset.allocations,
-      preset.expectedReturn,
-      preset.risk,
-      hedge,
-      mode,
-    );
-    let items: PortfolioItem[] = optimized.map(o => ({ fund: o.fund, weight: o.weight }));
+    try {
+      const optimized = optimizeFundsForPreset(
+        allFunds,
+        preset.allocations,
+        preset.expectedReturn,
+        preset.risk,
+        hedge,
+        mode,
+      );
+      // undefined/null ファンドを除外（防御）
+      let items: PortfolioItem[] = optimized
+        .filter(o => o && o.fund && typeof o.fund.id === 'string')
+        .map(o => ({ fund: o.fund, weight: o.weight }));
 
-    // 合計が100%にならない場合は正規化
-    const totalWeight = items.reduce((sum, item) => sum + item.weight, 0);
-    if (items.length > 0 && Math.abs(totalWeight - 1) > 0.001) {
-      items = items.map(item => ({ ...item, weight: item.weight / totalWeight }));
+      // 合計が100%にならない場合は正規化
+      const totalWeight = items.reduce((sum, item) => sum + item.weight, 0);
+      if (items.length > 0 && totalWeight > 0 && Math.abs(totalWeight - 1) > 0.001) {
+        items = items.map(item => ({ ...item, weight: item.weight / totalWeight }));
+      }
+      return items;
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('buildItemsForPreset failed:', e);
+      return [];
     }
-    return items;
   };
 
   useEffect(() => {
     if (!selectedPreset || disabled) return;
     const preset = portfolioPresets.find(p => p.id === selectedPreset);
     if (!preset) return;
-    onUpdateWeights(buildItemsForPreset(preset, calcMode, forexHedge));
+    const items = buildItemsForPreset(preset, calcMode, forexHedge);
+    if (items.length > 0) onUpdateWeights(items);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [calcMode]);
 
   const handlePresetSelect = (preset: PortfolioPreset) => {
     if (disabled) return;
+    // 新プリセットのファンドを先に構築
+    const items = buildItemsForPreset(preset, calcMode, forexHedge);
+    if (items.length === 0) {
+      // ファンドデータがまだ取得中 or 候補ゼロ → UIで警告し、既存の選定は維持
+      setPresetWarning(`${preset.name} の候補ファンドが見つかりませんでした（ファンドデータ取得中の可能性）。少し待って再度お試しください。`);
+      return;
+    }
+    // allocations の半分以上でマッチングできれば採用、満たない場合は警告のみ
+    if (items.length < Math.ceil(preset.allocations.length / 2)) {
+      setPresetWarning(`${preset.name} は一部カテゴリのファンドが見つからず、${items.length}/${preset.allocations.length}件のみで構成されました。`);
+    } else {
+      setPresetWarning(null);
+    }
     setSelectedPreset(preset.id);
     onPresetChange?.(preset.id);
-    onUpdateWeights(buildItemsForPreset(preset, calcMode, forexHedge));
+    onUpdateWeights(items);
   };
 
   const handleWeightChange = (index: number, value: number) => {
@@ -200,6 +224,17 @@ export default function PortfolioBuilder({ selectedFunds, allFunds, onUpdateWeig
     <div className="space-y-4">
       {/* プリセット選択 */}
       <PresetSelector selectedPreset={selectedPreset} onSelectPreset={handlePresetSelect} />
+
+      {/* プリセット選定警告 */}
+      {presetWarning && (
+        <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-3 flex items-start gap-3">
+          <span className="text-yellow-600 text-lg">⚠</span>
+          <div className="flex-1">
+            <p className="text-sm text-yellow-800">{presetWarning}</p>
+          </div>
+          <button onClick={() => setPresetWarning(null)} className="text-yellow-600 hover:text-yellow-800 text-lg leading-none">×</button>
+        </div>
+      )}
 
       {/* 毎月の投資額 */}
       <div className="bg-white rounded-lg shadow p-4">
