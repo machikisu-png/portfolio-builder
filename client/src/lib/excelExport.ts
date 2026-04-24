@@ -125,10 +125,12 @@ export async function exportPortfolioToExcel(
 
     // 投資額 = 月額 × 割合（数値で入れる）
     ws.getCell(`${col}3`).value = Math.round(monthlyInvestment * weightPct);
-    ws.getCell(`${col}4`).value = weightPct;       // 割合（0-1 小数）
-    ws.getCell(`${col}5`).value = avgReturn;       // 利回り (%値)
-    ws.getCell(`${col}8`).value = avgRisk;         // 標準偏差 (%値)
-    ws.getCell(`${col}11`).value = fundNameJoined; // ファンド名
+    // セル書式が '0.00%' なので割合・利回りは 0-1 の小数で入れる（7.5% → 0.075）
+    ws.getCell(`${col}4`).value = weightPct;          // 割合（0-1 小数）
+    ws.getCell(`${col}5`).value = avgReturn / 100;    // 利回り（% → 0-1 小数）
+    // 標準偏差のセル書式は plain number なので %値のまま入れる
+    ws.getCell(`${col}8`).value = avgRisk;             // 標準偏差（%値）
+    ws.getCell(`${col}11`).value = fundNameJoined;     // ファンド名
   });
 
   // 積立条件も反映（B28 = 月額、J28 = 年数）
