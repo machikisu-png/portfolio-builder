@@ -377,10 +377,12 @@ export function startBackgroundScrape(): void {
   }
 }
 
-// GET /api/funds - ファンド一覧（DB即応）
+// GET /api/funds - ファンド一覧（DB即応、空ならサンプル）
 router.get('/', async (_req: Request, res: Response) => {
   try {
-    const funds = loadFundsFromDB();
+    const dbFunds = loadFundsFromDB();
+    // DB が空（スクレイピング未完了 or Render再起動でリセット）の場合はサンプルをフォールバック
+    const funds = dbFunds.length > 0 ? dbFunds : sampleFunds;
     const { category, nisaOnly, source, sortBy, sortOrder, minReturn, maxExpenseRatio, q, limit } = _req.query;
 
     let filtered = [...funds];
