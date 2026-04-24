@@ -27,13 +27,14 @@ interface CategoryAgg {
 }
 
 /**
- * ファンドの長期リターンを取得（5年→3年→1年の順）
+ * ファンドの1年リターンを取得（エクセル利回り欄用）
+ * 1年データが無い場合のみ 3年 / 5年 にフォールバック
  */
 function getReturn(item: PortfolioItem): number {
   const f = item.fund;
-  if (f.return5y != null && Number.isFinite(f.return5y)) return f.return5y;
+  if (f.return1y != null && Number.isFinite(f.return1y)) return f.return1y;
   if (f.return3y != null && Number.isFinite(f.return3y)) return f.return3y;
-  if (f.return1y != null && Number.isFinite(f.return1y)) return Math.min(f.return1y, 8);
+  if (f.return5y != null && Number.isFinite(f.return5y)) return f.return5y;
   return 0;
 }
 
