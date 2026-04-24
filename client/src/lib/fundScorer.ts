@@ -278,7 +278,11 @@ function getLongTermReturn(fund: Fund): number {
     return values.reduce((s, v) => s + v.ret * v.weight, 0) / totalWeight;
   }
 
-  if (fund.return1y !== null) return fund.return1y;
+  // 1年データのみの場合、長期期待値として過大評価を避けるため保守的にキャップ
+  // 短期の急騰（例: 26%）を長期年率期待として採用するのは危険
+  if (fund.return1y !== null) {
+    return Math.min(fund.return1y, 8);
+  }
   return 0;
 }
 
@@ -415,6 +419,15 @@ export function optimizeFundsForPreset(
   const riskEffMultiplier = calcMode === 'mpt' ? 0.75 : 1.0;
   const usedFundIds = new Set<string>();
 
+  // プリセットの目標値に応じて、カテゴリリターンをスケーリング
+  // 積極型プリセット（高リターン目標）では各カテゴリの ideal リターンも高く、
+  // 安定型プリセット（低リターン目標）では ideal リターンを低く取る
+  // 基準: 標準プリセット(target=6.5%) を 1.0 倍とし、それ以外は targetReturn/6.5 倍
+  // リスクはスケーリングしない: カテゴリリスクは個別ファンドのリスクで、
+  // プリセットのリスク値は分散効果を含むポートフォリオ値のため性質が異なる
+  const baselineReturn = 6.5;
+  const returnScale = targetReturn / baselineReturn;
+
   // レバレッジ・毎月分配等を除外
   const eligibleFunds = allFunds.filter(isEligibleForPreset);
 
@@ -435,7 +448,10 @@ export function optimizeFundsForPreset(
     // 候補ゼロ（対象カテゴリのファンドが未取得等）の場合は、このスロットをスキップ
     if (candidates.length === 0) continue;
 
-    const idealReturn = categoryReturnBenchmark[alloc.category] ?? targetReturn;
+    // カテゴリ基準リターンを preset の目標値でスケール（積極型なら高く、安定型なら低く）
+    // リスクはカテゴリ固有のため未スケール
+    const catReturnBase = categoryReturnBenchmark[alloc.category] ?? targetReturn;
+    const idealReturn = catReturnBase * returnScale;
     const idealRisk = categoryRiskBenchmark[alloc.category] ?? targetRisk;
 
     let bestFund = candidates[0];
