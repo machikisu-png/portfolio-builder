@@ -100,9 +100,8 @@ export async function exportPortfolioToExcel(
   // カテゴリ別集約
   const agg = aggregateByCategory(items);
 
-  // 総投資額（積立総額 = 月額 × 12 × 年数）を数値で入力
-  const totalInvestment = monthlyInvestment * 12 * years;
-  ws.getCell('Q3').value = totalInvestment;
+  // 投資額 = 月額投資額を数値で入力（エクセルの C6=C3*C5+C3 等の既存数式で月額ベースで計算される）
+  ws.getCell('Q3').value = monthlyInvestment;
 
   // 全カテゴリ列をクリア（未使用カテゴリは空にする）
   const allColumns = ['C', 'E', 'G', 'I', 'K', 'M', 'O'];
@@ -123,8 +122,8 @@ export async function exportPortfolioToExcel(
       ? data.fundNames.join('、')
       : `${data.fundNames[0]} 他${data.fundNames.length - 1}本`;
 
-    // 投資額 = 総投資額 × 割合（数値で入れる）
-    ws.getCell(`${col}3`).value = Math.round(totalInvestment * weightPct);
+    // 投資額 = 月額 × 割合（数値で入れる）
+    ws.getCell(`${col}3`).value = Math.round(monthlyInvestment * weightPct);
     ws.getCell(`${col}4`).value = weightPct;       // 割合（0-1 小数）
     ws.getCell(`${col}5`).value = avgReturn;       // 利回り (%値)
     ws.getCell(`${col}8`).value = avgRisk;         // 標準偏差 (%値)

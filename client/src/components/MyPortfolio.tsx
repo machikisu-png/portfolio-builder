@@ -154,7 +154,8 @@ export default function MyPortfolio({ items, presetId, confirmed, onConfirm, onU
               </div>
               <div className="text-xs text-gray-500">
                 月額 <span className="font-semibold text-gray-700">{monthlyInvestment.toLocaleString()}円</span>
-                → 総投資額 <span className="font-semibold text-gray-700">{(monthlyInvestment * 12 * exportYears).toLocaleString()}円</span>
+                <span className="mx-1 text-gray-400">（エクセル投資額欄に入力）</span>
+                参考: 総投資額 <span className="font-semibold text-gray-700">{(monthlyInvestment * 12 * exportYears).toLocaleString()}円</span>
               </div>
               <button
                 onClick={handleExport}
