@@ -262,12 +262,12 @@ function getLongTermReturn(fund: Fund): number {
   // 10年(長期安定)と5年(近年実績)を組み合わせる
   const values: Array<{ ret: number; weight: number }> = [];
 
-  if (fund.return10y !== null) values.push({ ret: fund.return10y, weight: 3 });
-  if (fund.return5y !== null) values.push({ ret: fund.return5y, weight: 5 });
+  if (fund.return10y != null && Number.isFinite(fund.return10y)) values.push({ ret: fund.return10y, weight: 3 });
+  if (fund.return5y != null && Number.isFinite(fund.return5y)) values.push({ ret: fund.return5y, weight: 5 });
 
   // 3年リターンの妥当性チェック（累積値の可能性を除外）
-  if (fund.return3y !== null) {
-    const r1 = fund.return1y ?? 0;
+  if (fund.return3y != null && Number.isFinite(fund.return3y)) {
+    const r1 = (fund.return1y != null && Number.isFinite(fund.return1y)) ? fund.return1y : 0;
     if (!(fund.return3y < 3 && r1 > 10)) {
       values.push({ ret: fund.return3y, weight: 2 });
     }
@@ -280,7 +280,7 @@ function getLongTermReturn(fund: Fund): number {
 
   // 1年データのみの場合、長期期待値として過大評価を避けるため保守的にキャップ
   // 短期の急騰（例: 26%）を長期年率期待として採用するのは危険
-  if (fund.return1y !== null) {
+  if (fund.return1y != null && Number.isFinite(fund.return1y)) {
     return Math.min(fund.return1y, 8);
   }
   return 0;

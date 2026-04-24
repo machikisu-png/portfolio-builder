@@ -84,14 +84,14 @@ export default function PortfolioBuilder({ selectedFunds, allFunds, onUpdateWeig
         hedge,
         mode,
       );
-      // undefined/null ファンドを除外（防御）
+      // undefined/null/NaN を徹底排除（防御）
       let items: PortfolioItem[] = optimized
-        .filter(o => o && o.fund && typeof o.fund.id === 'string')
+        .filter(o => o && o.fund && typeof o.fund.id === 'string' && Number.isFinite(o.weight) && o.weight > 0)
         .map(o => ({ fund: o.fund, weight: o.weight }));
 
       // 合計が100%にならない場合は正規化
       const totalWeight = items.reduce((sum, item) => sum + item.weight, 0);
-      if (items.length > 0 && totalWeight > 0 && Math.abs(totalWeight - 1) > 0.001) {
+      if (items.length > 0 && Number.isFinite(totalWeight) && totalWeight > 0 && Math.abs(totalWeight - 1) > 0.001) {
         items = items.map(item => ({ ...item, weight: item.weight / totalWeight }));
       }
       return items;
@@ -120,9 +120,10 @@ export default function PortfolioBuilder({ selectedFunds, allFunds, onUpdateWeig
       setPresetWarning(`${preset.name} の候補ファンドが見つかりませんでした（ファンドデータ取得中の可能性）。少し待って再度お試しください。`);
       return;
     }
-    // allocations の半分以上でマッチングできれば採用、満たない場合は警告のみ
-    if (items.length < Math.ceil(preset.allocations.length / 2)) {
-      setPresetWarning(`${preset.name} は一部カテゴリのファンドが見つからず、${items.length}/${preset.allocations.length}件のみで構成されました。`);
+    // 1/3未満のマッチングなら警告（例: 6件中1件だけしかマッチしない等の異常時）
+    // 4/6, 5/6 のような軽微な不足は警告しない（配分正規化で十分機能する）
+    if (items.length < Math.ceil(preset.allocations.length / 3)) {
+      setPresetWarning(`${preset.name} は多くのカテゴリのファンドが未取得で、${items.length}/${preset.allocations.length}件のみで構成されました。`);
     } else {
       setPresetWarning(null);
     }

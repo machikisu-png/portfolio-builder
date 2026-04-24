@@ -4,15 +4,15 @@ import type { Fund, OptimizationResult, RiskTolerance } from './types';
 // 効率的フロンティア上の最適ポートフォリオを計算
 
 function getExpectedReturn(fund: Fund): number {
-  // 利用可能な最長期間のリターンを使用
-  if (fund.return5y !== null) return fund.return5y;
-  if (fund.return3y !== null) return fund.return3y;
-  if (fund.return1y !== null) return fund.return1y;
+  // 利用可能な最長期間のリターンを使用（null/undefined/NaN を徹底排除）
+  if (fund.return5y != null && Number.isFinite(fund.return5y)) return fund.return5y;
+  if (fund.return3y != null && Number.isFinite(fund.return3y)) return fund.return3y;
+  if (fund.return1y != null && Number.isFinite(fund.return1y)) return fund.return1y;
   return 0;
 }
 
 function getRisk(fund: Fund): number {
-  if (fund.stdDev !== null) return fund.stdDev;
+  if (fund.stdDev != null && Number.isFinite(fund.stdDev)) return fund.stdDev;
   // 標準偏差がない場合はリターンから推定
   const ret = getExpectedReturn(fund);
   return Math.abs(ret) * 0.8 + 5; // 簡易推定
