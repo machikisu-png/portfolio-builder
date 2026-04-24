@@ -179,6 +179,47 @@ export default function PortfolioBuilder({ selectedFunds, allFunds, onUpdateWeig
     onUpdateWeights(updated);
   };
 
+  // リターン/リスクを微調整（±2%ずつ weight をシフト）
+  const handleAdjust = (type: 'return' | 'risk', direction: 'up' | 'down') => {
+    if (selectedFunds.length < 2) return;
+    const STEP = 0.02;          // 1回の移動量: 2pt
+    const MIN_WEIGHT = 0.02;     // ファンドの下限 2%
+    const MAX_WEIGHT = 0.80;     // 単一ファンドの上限 80%
+
+    // 各ファンドの指標値を取得（リターン or リスク）
+    const metric = selectedFunds.map(item => {
+      if (type === 'return') {
+        return item.fund.return5y ?? item.fund.return3y ?? item.fund.return1y ?? 0;
+      } else {
+        return item.fund.stdDev ?? Math.abs(item.fund.return1y ?? 10) * 0.8 + 5;
+      }
+    });
+
+    // direction=up → 低指標から高指標へシフト
+    // direction=down → 高指標から低指標へシフト
+    const indices = Array.from({ length: selectedFunds.length }, (_, i) => i);
+    const sortedLow = [...indices].sort((a, b) => metric[a] - metric[b]);  // 昇順
+    const sortedHigh = [...indices].sort((a, b) => metric[b] - metric[a]); // 降順
+
+    const sourceList = direction === 'up' ? sortedLow : sortedHigh;
+    const targetList = direction === 'up' ? sortedHigh : sortedLow;
+
+    // 源: 下限に達していない最初の候補
+    const srcIdx = sourceList.find(i => selectedFunds[i].weight - STEP >= MIN_WEIGHT);
+    // 先: 上限に達していない最初の候補（源と異なる）
+    const dstIdx = targetList.find(i => i !== srcIdx && selectedFunds[i].weight + STEP <= MAX_WEIGHT);
+
+    if (srcIdx === undefined || dstIdx === undefined) return;
+    if (metric[srcIdx] === metric[dstIdx]) return; // 同じ指標値のファンドしかない場合は変化なし
+
+    const updated = selectedFunds.map((item, i) => {
+      if (i === srcIdx) return { ...item, weight: Math.round((item.weight - STEP) * 100) / 100 };
+      if (i === dstIdx) return { ...item, weight: Math.round((item.weight + STEP) * 100) / 100 };
+      return item;
+    });
+    onUpdateWeights(updated);
+  };
+
   const handleRemoveFund = (index: number) => {
     setSelectedPreset(null);
     const updated = selectedFunds.filter((_, i) => i !== index);
@@ -477,6 +518,46 @@ export default function PortfolioBuilder({ selectedFunds, allFunds, onUpdateWeig
                   {selectedPreset ? '目標値に合わせる' : '自動最適化'}
                 </button>
               </div>
+            </div>
+
+            {/* 微調整ボタン（リターン/リスク ±） */}
+            <div className="bg-gray-50 rounded-lg p-3 mb-3 flex flex-wrap items-center gap-2">
+              <span className="text-xs text-gray-500 font-medium mr-1">微調整:</span>
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-gray-600 min-w-[3rem]">リターン</span>
+                <button
+                  onClick={() => handleAdjust('return', 'down')}
+                  className="px-2.5 py-1 text-sm border border-gray-300 rounded bg-white hover:bg-red-50 hover:border-red-300 transition-colors"
+                  title="低リターンファンドへ 2%シフト（リターン値を下げる）"
+                >
+                  ↓
+                </button>
+                <button
+                  onClick={() => handleAdjust('return', 'up')}
+                  className="px-2.5 py-1 text-sm border border-gray-300 rounded bg-white hover:bg-green-50 hover:border-green-300 transition-colors"
+                  title="高リターンファンドへ 2%シフト（リターン値を上げる）"
+                >
+                  ↑
+                </button>
+              </div>
+              <div className="flex items-center gap-1 ml-2">
+                <span className="text-xs text-gray-600 min-w-[3rem]">リスク</span>
+                <button
+                  onClick={() => handleAdjust('risk', 'down')}
+                  className="px-2.5 py-1 text-sm border border-gray-300 rounded bg-white hover:bg-green-50 hover:border-green-300 transition-colors"
+                  title="低リスクファンドへ 2%シフト（リスク値を下げる）"
+                >
+                  ↓
+                </button>
+                <button
+                  onClick={() => handleAdjust('risk', 'up')}
+                  className="px-2.5 py-1 text-sm border border-gray-300 rounded bg-white hover:bg-red-50 hover:border-red-300 transition-colors"
+                  title="高リスクファンドへ 2%シフト（リスク値を上げる）"
+                >
+                  ↑
+                </button>
+              </div>
+              <span className="text-[10px] text-gray-400 ml-auto">1クリックで 2% ずつ移動</span>
             </div>
 
             <div className="space-y-3">
