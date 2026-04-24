@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import type { Fund, PortfolioItem, PortfolioPreset, RiskTolerance } from '../lib/types';
-import { optimizePortfolio, generateEfficientFrontier, calcPortfolioStats } from '../lib/optimizer';
+import { optimizePortfolio, generateEfficientFrontier, calcPortfolioStats, optimizeWeightsToTarget } from '../lib/optimizer';
 import { useCalcMode } from '../hooks/useCalcMode';
 import { useMonthlyInvestment, formatYen } from '../hooks/useMonthlyInvestment';
 import { scoreFund, optimizeFundsForPreset, scoreLabel, scoreLabels, type ScoreBreakdown } from '../lib/fundScorer';
@@ -148,12 +148,32 @@ export default function PortfolioBuilder({ selectedFunds, allFunds, onUpdateWeig
   };
 
   const handleOptimize = () => {
-    setSelectedPreset(null);
     const funds = selectedFunds.map(item => item.fund);
-    const result = optimizePortfolio(funds, riskTolerance, 10000, calcMode);
+    const currentWeights = selectedFunds.map(item => item.weight);
+    const preset = selectedPreset ? portfolioPresets.find(p => p.id === selectedPreset) : null;
+
+    let newWeights: number[];
+    if (preset) {
+      // プリセット選択中: 目標リターン/リスクに最も近い配分を探索
+      const result = optimizeWeightsToTarget(
+        funds,
+        preset.expectedReturn,
+        preset.risk,
+        15000,
+        calcMode,
+        currentWeights,
+      );
+      newWeights = result.weights;
+      // プリセット選択は維持（目標追従のため解除しない）
+    } else {
+      // プリセット未選択: 従来のシャープレシオ最大化
+      const result = optimizePortfolio(funds, riskTolerance, 10000, calcMode);
+      newWeights = result.weights;
+    }
+
     const updated = selectedFunds.map((item, i) => ({
       ...item,
-      weight: result.weights[i] || 0,
+      weight: newWeights[i] || 0,
     }));
     onUpdateWeights(updated);
   };
@@ -449,8 +469,11 @@ export default function PortfolioBuilder({ selectedFunds, allFunds, onUpdateWeig
                 <button
                   onClick={handleOptimize}
                   className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                  title={selectedPreset
+                    ? 'プリセットの目標リターン/リスク値に配分比率を近づけます'
+                    : 'シャープレシオ最大となる配分を探索します'}
                 >
-                  自動最適化
+                  {selectedPreset ? '目標値に合わせる' : '自動最適化'}
                 </button>
               </div>
             </div>

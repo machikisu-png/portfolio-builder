@@ -100,6 +100,73 @@ function randomWeights(n: number): number[] {
   return raw.map(v => v / sum);
 }
 
+// 目標リターン/リスクに最も近い配分を探索（モンテカルロ）
+// プリセットの目標値に配分比率を寄せたいときに使用
+export function optimizeWeightsToTarget(
+  funds: Fund[],
+  targetReturn: number,
+  targetRisk: number,
+  iterations: number = 15000,
+  mode?: CalcMode,
+  seedWeights?: number[],
+): OptimizationResult {
+  const n = funds.length;
+  if (n === 0) return { weights: [], expectedReturn: 0, risk: 0, sharpeRatio: 0 };
+  if (n === 1) {
+    const stats = calcPortfolioStats(funds, [1], mode);
+    return { weights: [1], ...stats };
+  }
+
+  // 初期値は seedWeights（現在の配分）or 均等配分
+  const initWeights = seedWeights && seedWeights.length === n ? [...seedWeights] : Array(n).fill(1 / n);
+  const initStats = calcPortfolioStats(funds, initWeights, mode);
+  // リターンとリスクの差をバランス良く最小化
+  // リターンをやや重く（下振れを許さない）、リスクはほぼ同等
+  const errorOf = (ret: number, risk: number) =>
+    Math.abs(ret - targetReturn) * 1.2 + Math.abs(risk - targetRisk);
+
+  let bestWeights = initWeights;
+  let bestStats = initStats;
+  let bestError = errorOf(initStats.expectedReturn, initStats.risk);
+
+  // 1/3: 完全ランダム探索（グローバル探索）
+  const randomPhase = Math.floor(iterations / 3);
+  for (let i = 0; i < randomPhase; i++) {
+    const w = randomWeights(n);
+    const stats = calcPortfolioStats(funds, w, mode);
+    const err = errorOf(stats.expectedReturn, stats.risk);
+    if (err < bestError) {
+      bestError = err;
+      bestWeights = w;
+      bestStats = stats;
+    }
+  }
+
+  // 2/3: 現在のベストを中心に微調整（ローカル探索）
+  for (let i = randomPhase; i < iterations; i++) {
+    // 既存の配分を中心にノイズを加える
+    const noise = 0.1 + Math.random() * 0.2; // 10-30%の摂動
+    const perturbed = bestWeights.map(w => Math.max(0, w + (Math.random() - 0.5) * noise));
+    const sum = perturbed.reduce((a, b) => a + b, 0);
+    const w = sum > 0 ? perturbed.map(v => v / sum) : randomWeights(n);
+    const stats = calcPortfolioStats(funds, w, mode);
+    const err = errorOf(stats.expectedReturn, stats.risk);
+    if (err < bestError) {
+      bestError = err;
+      bestWeights = w;
+      bestStats = stats;
+    }
+  }
+
+  // 重みを1%単位に丸め、合計1を保証
+  const rounded = bestWeights.map(w => Math.round(w * 100) / 100);
+  const diff = 1 - rounded.reduce((a, b) => a + b, 0);
+  const maxIdx = rounded.indexOf(Math.max(...rounded));
+  rounded[maxIdx] = Math.round((rounded[maxIdx] + diff) * 100) / 100;
+
+  return { weights: rounded, ...bestStats };
+}
+
 // モンテカルロ法による効率的フロンティア近似
 export function optimizePortfolio(
   funds: Fund[],
