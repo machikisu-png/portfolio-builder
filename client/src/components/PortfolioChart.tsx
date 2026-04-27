@@ -54,15 +54,11 @@ export default function PortfolioChart({ items, showFrontier, frontierData, pres
     value: Math.round(value),
   }));
 
-  // ポートフォリオ統計（プリセット値があればそちらを使用）
+  // ポートフォリオ統計（実際のファンド構成に基づく計算値）
+  // 「目標との比較」の「実際」値と一致させるため、preset 値による上書きはしない
   const funds = items.map(i => i.fund);
   const weights = items.map(i => i.weight);
-  const baseStats = calcPortfolioStats(funds, weights, calcMode);
-  const stats = {
-    expectedReturn: presetReturn ?? baseStats.expectedReturn,
-    risk: presetRisk ?? baseStats.risk,
-    sharpeRatio: presetRisk ? ((presetReturn ?? baseStats.expectedReturn) - 0.1) / presetRisk : baseStats.sharpeRatio,
-  };
+  const stats = calcPortfolioStats(funds, weights, calcMode);
 
   return (
     <div className="space-y-6">
