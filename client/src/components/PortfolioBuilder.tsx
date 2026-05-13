@@ -3,7 +3,9 @@ import type { Fund, PortfolioItem, PortfolioPreset, RiskTolerance } from '../lib
 import { optimizePortfolio, generateEfficientFrontier, calcPortfolioStats, optimizeWeightsToTarget } from '../lib/optimizer';
 import { useCalcMode } from '../hooks/useCalcMode';
 import { useMonthlyInvestment, formatYen } from '../hooks/useMonthlyInvestment';
+import { useRecommendedOnly } from '../hooks/useRecommendedOnly';
 import { scoreFund, optimizeFundsForPreset, scoreLabel, scoreLabels, type ScoreBreakdown } from '../lib/fundScorer';
+import { filterRecommended, RECOMMENDED_FUNDS } from '../lib/recommendedFunds';
 import PresetSelector from './PresetSelector';
 import { portfolioPresets } from '../lib/presets';
 import PortfolioChart from './PortfolioChart';
@@ -71,13 +73,20 @@ export default function PortfolioBuilder({ selectedFunds, allFunds, onUpdateWeig
   const [forexHedge, setForexHedge] = useState<'none' | 'hedged' | 'both'>('none');
   const [expandedScore, setExpandedScore] = useState<string | null>(null);
   const [presetWarning, setPresetWarning] = useState<string | null>(null);
+  const [recommendedOnly, setRecommendedOnly] = useRecommendedOnly();
+
+  // 優良ファンドのみモードの場合は allFunds を絞り込み
+  const eligibleFunds = useMemo(
+    () => (recommendedOnly ? filterRecommended(allFunds) : allFunds),
+    [allFunds, recommendedOnly],
+  );
 
   // 計算モード変更時: プリセット選択中ならファンド再選定
   // プリセットからファンド選定（失敗時は空配列を返し、呼び出し側でガード）
   const buildItemsForPreset = (preset: PortfolioPreset, mode: 'mpt' | 'spreadsheet' | 'pro', hedge: 'none' | 'hedged' | 'both'): PortfolioItem[] => {
     try {
       const optimized = optimizeFundsForPreset(
-        allFunds,
+        eligibleFunds,
         preset.allocations,
         preset.expectedReturn,
         preset.risk,
@@ -109,7 +118,7 @@ export default function PortfolioBuilder({ selectedFunds, allFunds, onUpdateWeig
     const items = buildItemsForPreset(preset, calcMode, forexHedge);
     if (items.length > 0) onUpdateWeights(items);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [calcMode]);
+  }, [calcMode, recommendedOnly]);
 
   const handlePresetSelect = (preset: PortfolioPreset) => {
     if (disabled) return;
@@ -260,7 +269,7 @@ export default function PortfolioBuilder({ selectedFunds, allFunds, onUpdateWeig
           '海外債券': ['海外債券', '海外債券'],
         };
         const matchCats = categoryAliases[cat] || [cat];
-        const candidates = allFunds
+        const candidates = eligibleFunds
           .filter(f => matchCats.includes(f.category) && f.id !== item.fund.id)
           .map(f => ({ fund: f, score: scoreFund(f) }))
           .sort((a, b) => b.score.total - a.score.total)
@@ -269,7 +278,7 @@ export default function PortfolioBuilder({ selectedFunds, allFunds, onUpdateWeig
       }
     }
     return map;
-  }, [selectedFunds, allFunds]);
+  }, [selectedFunds, eligibleFunds]);
 
   // ポートフォリオ全体の平均スコア
   const avgScore = useMemo(() => {
@@ -284,6 +293,37 @@ export default function PortfolioBuilder({ selectedFunds, allFunds, onUpdateWeig
 
   return (
     <div className="space-y-4">
+      {/* 優良ファンドのみ切替 */}
+      <div className="bg-white rounded-lg shadow p-3 flex flex-wrap items-center gap-3">
+        <div className="flex-1 min-w-[200px]">
+          <div className="text-sm font-semibold text-gray-800">ファンド選定基準</div>
+          <div className="text-xs text-gray-500 mt-0.5">
+            {recommendedOnly
+              ? `主要インデックスシリーズ（${RECOMMENDED_FUNDS.length}本）から自動選定 — 素人向け推奨`
+              : `全ファンド（${allFunds.length}本）から自動選定 — 候補が多く好調な無名ファンドが選ばれる場合あり`}
+          </div>
+        </div>
+        <label className="inline-flex items-center cursor-pointer gap-2">
+          <span className={`text-xs ${recommendedOnly ? 'text-gray-400' : 'text-gray-700 font-semibold'}`}>全ファンド</span>
+          <button
+            onClick={() => setRecommendedOnly(!recommendedOnly)}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+              recommendedOnly ? 'bg-green-600' : 'bg-gray-300'
+            }`}
+            aria-label="優良ファンドのみ切替"
+          >
+            <span
+              className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition ${
+                recommendedOnly ? 'translate-x-5' : 'translate-x-0.5'
+              }`}
+            />
+          </button>
+          <span className={`text-xs ${recommendedOnly ? 'text-green-700 font-semibold' : 'text-gray-400'}`}>
+            ⭐ 優良のみ
+          </span>
+        </label>
+      </div>
+
       {/* プリセット選択 */}
       <PresetSelector selectedPreset={selectedPreset} onSelectPreset={handlePresetSelect} />
 
