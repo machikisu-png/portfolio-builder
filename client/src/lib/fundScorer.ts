@@ -412,7 +412,7 @@ export function optimizeFundsForPreset(
   targetReturn: number,
   targetRisk: number,
   hedgePreference: 'none' | 'hedged' | 'both' = 'none',
-  calcMode: 'mpt' | 'spreadsheet' = 'spreadsheet',
+  calcMode: 'mpt' | 'spreadsheet' | 'pro' = 'spreadsheet',
 ): Array<{ fund: Fund; weight: number; score: ScoreBreakdown; fitScore: number }> {
   // calcMode='mpt' は相関考慮で実リスクが目標より小さく出る傾向のため、
   // 候補評価時のリスクを実効値(0.75倍)に補正してファンド選定を調整

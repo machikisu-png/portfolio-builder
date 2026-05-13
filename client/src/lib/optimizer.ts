@@ -1,4 +1,5 @@
 import type { Fund, OptimizationResult, RiskTolerance } from './types';
+import { getCorrelation as getProCorrelation, getAssetVolatility } from './proCovariance';
 
 // 平均分散最適化（マーコビッツモデル簡易版）
 // 効率的フロンティア上の最適ポートフォリオを計算
@@ -38,14 +39,18 @@ function estimateCorrelation(fund1: Fund, fund2: Fund): number {
   return 0.3;
 }
 
-// 計算モード: 'mpt' = Markowitz(相関考慮) / 'spreadsheet' = Excel計算表(相関無視)
-export type CalcMode = 'mpt' | 'spreadsheet';
+// 計算モード:
+//   'mpt' = Markowitz 簡易（カテゴリ間相関を粗くヒューリスティック推定）
+//   'spreadsheet' = Excel計算表互換（相関無視、σの単純加重和）
+//   'pro' = 機関投資家準拠（20年実データから推定した共分散行列を使用）
+export type CalcMode = 'mpt' | 'spreadsheet' | 'pro';
 
 const CALC_MODE_KEY = 'calcMode';
 export function getCalcMode(): CalcMode {
   if (typeof window === 'undefined') return 'mpt';
   const v = localStorage.getItem(CALC_MODE_KEY);
-  return v === 'spreadsheet' ? 'spreadsheet' : 'mpt';
+  if (v === 'spreadsheet' || v === 'pro' || v === 'mpt') return v;
+  return 'mpt';
 }
 export function setCalcMode(mode: CalcMode): void {
   if (typeof window !== 'undefined') {
@@ -71,12 +76,30 @@ export function calcPortfolioStats(
 
   let risk = 0;
   if (m === 'spreadsheet') {
-    // [Excel計算表モード] σの単純加重和（相関無視）
+    // [Excel計算表モード] σの単純加重和（相関無視、Excelの計算ロジック互換）
     for (let i = 0; i < n; i++) {
       risk += weights[i] * getRisk(funds[i]);
     }
+  } else if (m === 'pro') {
+    // [プロ最適化モード] 機関投資家準拠の共分散行列を使用
+    // 個別ファンドのσが取得できる場合はそれを使用、無ければカテゴリの実データσを使用
+    // 相関は proCovariance.ts のヒストリカル推定値を使う
+    let variance = 0;
+    for (let i = 0; i < n; i++) {
+      const sigmaI = funds[i].stdDev != null && Number.isFinite(funds[i].stdDev)
+        ? (funds[i].stdDev as number)
+        : getAssetVolatility(funds[i].category);
+      for (let j = 0; j < n; j++) {
+        const sigmaJ = funds[j].stdDev != null && Number.isFinite(funds[j].stdDev)
+          ? (funds[j].stdDev as number)
+          : getAssetVolatility(funds[j].category);
+        const corr = i === j ? 1 : getProCorrelation(funds[i].category, funds[j].category);
+        variance += weights[i] * weights[j] * sigmaI * sigmaJ * corr;
+      }
+    }
+    risk = Math.sqrt(Math.max(variance, 0));
   } else {
-    // [MPTモード] Markowitz分散共分散行列
+    // [MPTモード（簡易）] 旧来のヒューリスティック相関による分散共分散
     let variance = 0;
     for (let i = 0; i < n; i++) {
       for (let j = 0; j < n; j++) {

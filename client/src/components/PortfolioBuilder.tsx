@@ -74,7 +74,7 @@ export default function PortfolioBuilder({ selectedFunds, allFunds, onUpdateWeig
 
   // 計算モード変更時: プリセット選択中ならファンド再選定
   // プリセットからファンド選定（失敗時は空配列を返し、呼び出し側でガード）
-  const buildItemsForPreset = (preset: PortfolioPreset, mode: 'mpt' | 'spreadsheet', hedge: 'none' | 'hedged' | 'both'): PortfolioItem[] => {
+  const buildItemsForPreset = (preset: PortfolioPreset, mode: 'mpt' | 'spreadsheet' | 'pro', hedge: 'none' | 'hedged' | 'both'): PortfolioItem[] => {
     try {
       const optimized = optimizeFundsForPreset(
         allFunds,

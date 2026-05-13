@@ -26,13 +26,14 @@ export default function Layout({ children, activeTab, onTabChange, alertCount }:
               投信ポートフォリオビルダー
             </h1>
             <div className="flex items-center gap-2 flex-shrink-0">
-              {/* 計算モード切替 */}
+              {/* 計算モード切替 (MPT / 計算表 / プロ) */}
               <div
                 className="inline-flex rounded-md border border-gray-300 overflow-hidden text-[10px] sm:text-xs"
                 title="リターン/リスクの計算式を切り替えます"
               >
                 <button
                   onClick={() => setMode('mpt')}
+                  title="マーコビッツ簡易版（カテゴリ間相関をヒューリスティック推定）"
                   className={`px-2 sm:px-3 py-1 font-medium transition-colors ${
                     calcMode === 'mpt'
                       ? 'bg-blue-600 text-white'
@@ -43,6 +44,7 @@ export default function Layout({ children, activeTab, onTabChange, alertCount }:
                 </button>
                 <button
                   onClick={() => setMode('spreadsheet')}
+                  title="Excel 計算表と同じ計算式（相関無視、σの単純加重和）"
                   className={`px-2 sm:px-3 py-1 font-medium transition-colors ${
                     calcMode === 'spreadsheet'
                       ? 'bg-blue-600 text-white'
@@ -50,6 +52,17 @@ export default function Layout({ children, activeTab, onTabChange, alertCount }:
                   }`}
                 >
                   計算表
+                </button>
+                <button
+                  onClick={() => setMode('pro')}
+                  title="機関投資家準拠：20年実データから推定した共分散行列を使用"
+                  className={`px-2 sm:px-3 py-1 font-medium transition-colors ${
+                    calcMode === 'pro'
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-white text-purple-700 hover:bg-purple-50'
+                  }`}
+                >
+                  プロ
                 </button>
               </div>
             </div>
