@@ -4,8 +4,10 @@ import { optimizePortfolio, generateEfficientFrontier, calcPortfolioStats, optim
 import { useCalcMode } from '../hooks/useCalcMode';
 import { useMonthlyInvestment, formatYen } from '../hooks/useMonthlyInvestment';
 import { useRecommendedOnly } from '../hooks/useRecommendedOnly';
+import { useTargetBasis } from '../hooks/useTargetBasis';
 import { scoreFund, optimizeFundsForPreset, scoreLabel, scoreLabels, type ScoreBreakdown } from '../lib/fundScorer';
 import { filterRecommended, RECOMMENDED_FUNDS } from '../lib/recommendedFunds';
+import { computeModernStats } from '../lib/proCovariance';
 import PresetSelector from './PresetSelector';
 import { portfolioPresets } from '../lib/presets';
 import PortfolioChart from './PortfolioChart';
@@ -74,6 +76,7 @@ export default function PortfolioBuilder({ selectedFunds, allFunds, onUpdateWeig
   const [expandedScore, setExpandedScore] = useState<string | null>(null);
   const [presetWarning, setPresetWarning] = useState<string | null>(null);
   const [recommendedOnly, setRecommendedOnly] = useRecommendedOnly();
+  const [targetBasis, setTargetBasisValue] = useTargetBasis();
 
   // 優良ファンドのみモードの場合は allFunds を絞り込み
   const eligibleFunds = useMemo(
@@ -81,15 +84,28 @@ export default function PortfolioBuilder({ selectedFunds, allFunds, onUpdateWeig
     [allFunds, recommendedOnly],
   );
 
+  /**
+   * プリセットに対する「現在の前提での目標値」を返す。
+   * - classic: そのままの preset 値（古典的教科書ベース）
+   * - modern : computeModernStats() で動的計算した最新値
+   */
+  const getEffectiveTarget = (preset: PortfolioPreset): { expectedReturn: number; risk: number } => {
+    if (targetBasis === 'modern') {
+      return computeModernStats(preset.allocations);
+    }
+    return { expectedReturn: preset.expectedReturn, risk: preset.risk };
+  };
+
   // 計算モード変更時: プリセット選択中ならファンド再選定
   // プリセットからファンド選定（失敗時は空配列を返し、呼び出し側でガード）
   const buildItemsForPreset = (preset: PortfolioPreset, mode: 'mpt' | 'spreadsheet' | 'pro', hedge: 'none' | 'hedged' | 'both'): PortfolioItem[] => {
     try {
+      const target = getEffectiveTarget(preset);
       const optimized = optimizeFundsForPreset(
         eligibleFunds,
         preset.allocations,
-        preset.expectedReturn,
-        preset.risk,
+        target.expectedReturn,
+        target.risk,
         hedge,
         mode,
       );
@@ -118,7 +134,7 @@ export default function PortfolioBuilder({ selectedFunds, allFunds, onUpdateWeig
     const items = buildItemsForPreset(preset, calcMode, forexHedge);
     if (items.length > 0) onUpdateWeights(items);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [calcMode, recommendedOnly]);
+  }, [calcMode, recommendedOnly, targetBasis]);
 
   const handlePresetSelect = (preset: PortfolioPreset) => {
     if (disabled) return;
@@ -164,11 +180,12 @@ export default function PortfolioBuilder({ selectedFunds, allFunds, onUpdateWeig
 
     let newWeights: number[];
     if (preset) {
-      // プリセット選択中: 目標リターン/リスクに最も近い配分を探索
+      // プリセット選択中: 目標リターン/リスクに最も近い配分を探索（前提に応じた目標値）
+      const target = getEffectiveTarget(preset);
       const result = optimizeWeightsToTarget(
         funds,
-        preset.expectedReturn,
-        preset.risk,
+        target.expectedReturn,
+        target.risk,
         15000,
         calcMode,
         currentWeights,
@@ -293,35 +310,72 @@ export default function PortfolioBuilder({ selectedFunds, allFunds, onUpdateWeig
 
   return (
     <div className="space-y-4">
-      {/* 優良ファンドのみ切替 */}
-      <div className="bg-white rounded-lg shadow p-3 flex flex-wrap items-center gap-3">
-        <div className="flex-1 min-w-[200px]">
-          <div className="text-sm font-semibold text-gray-800">ファンド選定基準</div>
-          <div className="text-xs text-gray-500 mt-0.5">
-            {recommendedOnly
-              ? `主要インデックスシリーズ（${RECOMMENDED_FUNDS.length}本）から自動選定 — 素人向け推奨`
-              : `全ファンド（${allFunds.length}本）から自動選定 — 候補が多く好調な無名ファンドが選ばれる場合あり`}
+      {/* 設定パネル（優良ファンド + 目標値前提） */}
+      <div className="bg-white rounded-lg shadow p-3 space-y-3">
+        {/* 優良ファンドのみ */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex-1 min-w-[200px]">
+            <div className="text-sm font-semibold text-gray-800">ファンド選定基準</div>
+            <div className="text-xs text-gray-500 mt-0.5">
+              {recommendedOnly
+                ? `主要インデックスシリーズ（${RECOMMENDED_FUNDS.length}本）から自動選定 — 素人向け推奨`
+                : `全ファンド（${allFunds.length}本）から自動選定 — 候補が多く好調な無名ファンドが選ばれる場合あり`}
+            </div>
+          </div>
+          <label className="inline-flex items-center cursor-pointer gap-2">
+            <span className={`text-xs ${recommendedOnly ? 'text-gray-400' : 'text-gray-700 font-semibold'}`}>全ファンド</span>
+            <button
+              onClick={() => setRecommendedOnly(!recommendedOnly)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                recommendedOnly ? 'bg-green-600' : 'bg-gray-300'
+              }`}
+              aria-label="優良ファンドのみ切替"
+            >
+              <span
+                className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition ${
+                  recommendedOnly ? 'translate-x-5' : 'translate-x-0.5'
+                }`}
+              />
+            </button>
+            <span className={`text-xs ${recommendedOnly ? 'text-green-700 font-semibold' : 'text-gray-400'}`}>
+              ⭐ 優良のみ
+            </span>
+          </label>
+        </div>
+
+        {/* 目標値の前提（既存 / 最新） */}
+        <div className="flex flex-wrap items-center gap-3 border-t border-gray-100 pt-3">
+          <div className="flex-1 min-w-[200px]">
+            <div className="text-sm font-semibold text-gray-800">目標値の前提</div>
+            <div className="text-xs text-gray-500 mt-0.5">
+              {targetBasis === 'modern'
+                ? '20年実データに基づく現代的な目標値（プロモードと整合） — リスク高めの現実的な値'
+                : 'エクセル計算表由来の古典的目標値（教科書ベース） — リスク低めの理論値'}
+            </div>
+          </div>
+          <div className="inline-flex rounded-md border border-gray-300 overflow-hidden text-xs">
+            <button
+              onClick={() => setTargetBasisValue('classic')}
+              className={`px-3 py-1 font-medium transition-colors ${
+                targetBasis === 'classic'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              既存（計算表）
+            </button>
+            <button
+              onClick={() => setTargetBasisValue('modern')}
+              className={`px-3 py-1 font-medium transition-colors ${
+                targetBasis === 'modern'
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-white text-purple-700 hover:bg-purple-50'
+              }`}
+            >
+              最新値
+            </button>
           </div>
         </div>
-        <label className="inline-flex items-center cursor-pointer gap-2">
-          <span className={`text-xs ${recommendedOnly ? 'text-gray-400' : 'text-gray-700 font-semibold'}`}>全ファンド</span>
-          <button
-            onClick={() => setRecommendedOnly(!recommendedOnly)}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-              recommendedOnly ? 'bg-green-600' : 'bg-gray-300'
-            }`}
-            aria-label="優良ファンドのみ切替"
-          >
-            <span
-              className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition ${
-                recommendedOnly ? 'translate-x-5' : 'translate-x-0.5'
-              }`}
-            />
-          </button>
-          <span className={`text-xs ${recommendedOnly ? 'text-green-700 font-semibold' : 'text-gray-400'}`}>
-            ⭐ 優良のみ
-          </span>
-        </label>
       </div>
 
       {/* プリセット選択 */}
@@ -432,6 +486,9 @@ export default function PortfolioBuilder({ selectedFunds, allFunds, onUpdateWeig
           {selectedPreset && (() => {
             const preset = portfolioPresets.find(p => p.id === selectedPreset);
             if (!preset || selectedFunds.length === 0) return null;
+            // 「目標値の前提」に応じた目標値を取得
+            const target = getEffectiveTarget(preset);
+            const basisLabel = targetBasis === 'modern' ? '最新値（20年実データ）' : '既存（計算表基準）';
             // 実ファンドデータから加重平均で実際値を算出（計算モード反映）
             const stats = calcPortfolioStats(
               selectedFunds.map(i => i.fund),
@@ -440,21 +497,26 @@ export default function PortfolioBuilder({ selectedFunds, allFunds, onUpdateWeig
             );
             const actualReturn = stats.expectedReturn;
             const actualRisk = stats.risk;
-            const returnDiff = actualReturn - preset.expectedReturn;
-            const riskDiff = actualRisk - preset.risk;
+            const returnDiff = actualReturn - target.expectedReturn;
+            const riskDiff = actualRisk - target.risk;
             const returnMatch = Math.abs(returnDiff) < 1.0;
             const riskMatch = Math.abs(riskDiff) < 1.0;
 
             return (
               <div className="bg-white rounded-lg shadow p-4">
-                <h3 className="text-lg font-semibold text-gray-800 mb-3">目標との比較</h3>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-lg font-semibold text-gray-800">目標との比較</h3>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full ${targetBasis === 'modern' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                    {basisLabel}
+                  </span>
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className={`rounded-lg p-3 border-2 ${returnMatch ? 'border-green-300 bg-green-50' : 'border-yellow-300 bg-yellow-50'}`}>
                     <div className="text-xs text-gray-500 mb-1">期待リターン</div>
                     <div className="flex items-end gap-2">
                       <div>
                         <span className="text-xs text-gray-400">目標 </span>
-                        <span className="text-lg font-bold text-gray-700">{preset.expectedReturn}%</span>
+                        <span className="text-lg font-bold text-gray-700">{target.expectedReturn.toFixed(1)}%</span>
                       </div>
                       <span className="text-gray-300 text-lg">→</span>
                       <div>
@@ -475,7 +537,7 @@ export default function PortfolioBuilder({ selectedFunds, allFunds, onUpdateWeig
                     <div className="flex items-end gap-2">
                       <div>
                         <span className="text-xs text-gray-400">目標 </span>
-                        <span className="text-lg font-bold text-gray-700">{preset.risk}%</span>
+                        <span className="text-lg font-bold text-gray-700">{target.risk.toFixed(1)}%</span>
                       </div>
                       <span className="text-gray-300 text-lg">→</span>
                       <div>
