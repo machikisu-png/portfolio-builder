@@ -5,6 +5,7 @@ import { portfolioPresets } from '../lib/presets';
 import { scoreFund, scoreLabel } from '../lib/fundScorer';
 import { useMonthlyInvestment } from '../hooks/useMonthlyInvestment';
 import { exportPortfolioToExcel } from '../lib/excelExport';
+import { exportPurchaseListText, exportPurchaseListCSV } from '../lib/purchaseListExport';
 import Simulation from './Simulation';
 
 interface MyPortfolioProps {
@@ -168,6 +169,33 @@ export default function MyPortfolio({ items, presetId, confirmed, onConfirm, onU
             {exportError && (
               <div className="mt-2 text-xs text-red-600">エラー: {exportError}</div>
             )}
+          </div>
+
+          {/* 購入リスト出力 */}
+          <div className="bg-white rounded-lg shadow p-4">
+            <h3 className="text-sm font-semibold text-gray-800 mb-2">購入リスト出力</h3>
+            <p className="text-xs text-gray-500 mb-3">
+              証券会社で積立設定する際の参考用に、ファンド名・配分・月額金額・販売会社をまとめたリストを出力します。実際の発注はご自身で各証券会社の画面から行ってください。
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => exportPurchaseListText(items, monthlyInvestment, preset?.name)}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm hover:bg-indigo-700 transition-colors"
+                title="チェックリスト形式のテキストファイル。印刷して使えます"
+              >
+                📋 購入リスト（TXT）
+              </button>
+              <button
+                onClick={() => exportPurchaseListCSV(items, monthlyInvestment, preset?.name)}
+                className="px-4 py-2 bg-teal-600 text-white rounded-md text-sm hover:bg-teal-700 transition-colors"
+                title="スプレッドシートで開ける CSV 形式"
+              >
+                📊 購入リスト（CSV）
+              </button>
+            </div>
+            <div className="mt-2 text-[11px] text-gray-400">
+              ※ ファンド名・金額・配分は購入時の最新情報を必ず確認してください。
+            </div>
           </div>
 
 
