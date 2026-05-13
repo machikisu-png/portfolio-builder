@@ -101,3 +101,34 @@ export function getAssetVolatility(category: string): number {
 export function getAssetExpectedReturn(category: string): number {
   return ASSET_EXPECTED_RETURN[category] ?? 5.0;
 }
+
+/**
+ * プリセットの配分（カテゴリ×重み）から、現代の実データベースで
+ * 期待リターンと標準偏差を計算
+ * - 期待リターンは ASSET_EXPECTED_RETURN の長期均衡値の加重平均
+ * - 標準偏差は σp = √(w'Σw) で、共分散行列はヒストリカル相関 × 各σ
+ */
+export function computeModernStats(
+  allocations: Array<{ category: string; weight: number }>,
+): { expectedReturn: number; risk: number } {
+  // 期待リターン: 加重平均
+  let expectedReturn = 0;
+  for (const a of allocations) {
+    expectedReturn += a.weight * getAssetExpectedReturn(a.category);
+  }
+  // 分散: w'Σw
+  let variance = 0;
+  for (let i = 0; i < allocations.length; i++) {
+    for (let j = 0; j < allocations.length; j++) {
+      const ai = allocations[i];
+      const aj = allocations[j];
+      const sigmaI = getAssetVolatility(ai.category);
+      const sigmaJ = getAssetVolatility(aj.category);
+      const corr = i === j ? 1 : getCorrelation(ai.category, aj.category);
+      variance += ai.weight * aj.weight * sigmaI * sigmaJ * corr;
+    }
+  }
+  const risk = Math.sqrt(Math.max(variance, 0));
+  return { expectedReturn, risk };
+}
+

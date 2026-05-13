@@ -1,5 +1,6 @@
 import type { PortfolioPreset } from '../lib/types';
 import { portfolioPresets } from '../lib/presets';
+import { computeModernStats } from '../lib/proCovariance';
 
 interface PresetSelectorProps {
   selectedPreset: string | null;
@@ -15,9 +16,14 @@ const colorMap: Record<string, { bg: string; border: string; badge: string; text
   red:    { bg: 'bg-red-50',    border: 'border-red-500',    badge: 'bg-red-100 text-red-800',     text: 'text-red-700' },
 };
 
-function RiskReturnBar({ returnVal, risk }: { returnVal: number; risk: number }) {
+function RiskReturnBar({
+  returnVal,
+  risk,
+  modernReturn,
+  modernRisk,
+}: { returnVal: number; risk: number; modernReturn?: number; modernRisk?: number }) {
   const maxReturn = 15;
-  const maxRisk = 12;
+  const maxRisk = 16;
   return (
     <div className="mt-3 space-y-1.5">
       <div className="flex items-center gap-2">
@@ -40,6 +46,33 @@ function RiskReturnBar({ returnVal, risk }: { returnVal: number; risk: number })
         </div>
         <span className="text-xs font-mono font-semibold w-14 text-right">{risk}%</span>
       </div>
+      {modernReturn !== undefined && modernRisk !== undefined && (
+        <div className="border-t border-gray-100 pt-1.5 mt-1.5">
+          <div className="text-[10px] text-gray-400 mb-1">
+            最新値 <span className="text-gray-500">（20年実データ）</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-purple-500 w-16">R</span>
+            <div className="flex-1 bg-gray-200 rounded-full h-1.5">
+              <div
+                className="bg-purple-400 h-1.5 rounded-full"
+                style={{ width: `${Math.min((modernReturn / maxReturn) * 100, 100)}%` }}
+              />
+            </div>
+            <span className="text-[10px] font-mono w-14 text-right text-purple-700">{modernReturn.toFixed(1)}%</span>
+          </div>
+          <div className="flex items-center gap-2 mt-0.5">
+            <span className="text-[10px] text-purple-500 w-16">σ</span>
+            <div className="flex-1 bg-gray-200 rounded-full h-1.5">
+              <div
+                className="bg-purple-400 h-1.5 rounded-full"
+                style={{ width: `${Math.min((modernRisk / maxRisk) * 100, 100)}%` }}
+              />
+            </div>
+            <span className="text-[10px] font-mono w-14 text-right text-purple-700">{modernRisk.toFixed(1)}%</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -48,7 +81,18 @@ export default function PresetSelector({ selectedPreset, onSelectPreset }: Prese
   return (
     <div className="bg-white rounded-lg shadow p-4 mb-4">
       <h2 className="text-lg font-semibold text-gray-800 mb-1">ポートフォリオタイプを選択</h2>
-      <p className="text-sm text-gray-500 mb-4">6つのプリセットから投資スタイルに合ったものを選択すると、自動的にファンドが割り当てられます</p>
+      <p className="text-sm text-gray-500 mb-2">6つのプリセットから投資スタイルに合ったものを選択すると、自動的にファンドが割り当てられます</p>
+      <div className="flex flex-wrap gap-3 text-[10px] text-gray-500 mb-3">
+        <span className="flex items-center gap-1">
+          <span className="inline-block w-3 h-1.5 bg-green-500 rounded-sm"></span>
+          <span className="inline-block w-3 h-1.5 bg-orange-400 rounded-sm"></span>
+          目標値（プリセット定義）
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="inline-block w-3 h-1.5 bg-purple-400 rounded-sm"></span>
+          最新値（20年実データから推定）
+        </span>
+      </div>
 
       <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
         {portfolioPresets.map((preset, index) => {
@@ -97,7 +141,17 @@ export default function PresetSelector({ selectedPreset, onSelectPreset }: Prese
                 ))}
               </div>
 
-              <RiskReturnBar returnVal={preset.expectedReturn} risk={preset.risk} />
+              {(() => {
+                const modern = computeModernStats(preset.allocations);
+                return (
+                  <RiskReturnBar
+                    returnVal={preset.expectedReturn}
+                    risk={preset.risk}
+                    modernReturn={modern.expectedReturn}
+                    modernRisk={modern.risk}
+                  />
+                );
+              })()}
             </button>
           );
         })}
