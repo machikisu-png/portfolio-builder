@@ -6,6 +6,7 @@ import { scoreFund, scoreLabel } from '../lib/fundScorer';
 import { useMonthlyInvestment } from '../hooks/useMonthlyInvestment';
 import { exportPortfolioToExcel } from '../lib/excelExport';
 import { exportPurchaseListText, exportPurchaseListCSV } from '../lib/purchaseListExport';
+import { BROKERS, openBrokerWithFundName } from '../lib/brokerLinks';
 import Simulation from './Simulation';
 
 interface MyPortfolioProps {
@@ -260,7 +261,13 @@ export default function MyPortfolio({ items, presetId, confirmed, onConfirm, onU
 
           {/* ファンド詳細カード */}
           <div className="bg-white rounded-lg shadow p-4">
-            <h3 className="text-lg font-semibold text-gray-800 mb-3">選定ファンド詳細</h3>
+            <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+              <h3 className="text-lg font-semibold text-gray-800">選定ファンド詳細</h3>
+              <div className="text-[10px] text-gray-500 bg-amber-50 border border-amber-200 rounded px-2 py-1 leading-snug max-w-md">
+                💡 各ファンドの「🔗 ◯◯で購入」ボタンで、その証券会社の投信ページを新タブで開きます。
+                同時にファンド名がコピーされるので、検索窓に貼り付けてください。
+              </div>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {items.map((item, idx) => (
                 <div key={idx} className="border border-gray-200 rounded-lg p-3">
@@ -280,6 +287,30 @@ export default function MyPortfolio({ items, presetId, confirmed, onConfirm, onU
                     <span>5年リターン: <span className="text-gray-700">{item.fund.return5y?.toFixed(1) ?? '-'}%</span></span>
                     <span>シャープレシオ: <span className="text-gray-700">{item.fund.sharpeRatio?.toFixed(2) ?? '-'}</span></span>
                     <span>標準偏差: <span className="text-gray-700">{item.fund.stdDev?.toFixed(1) ?? '-'}%</span></span>
+                  </div>
+
+                  {/* 購入リンク: 証券会社の投信ページを新タブで開き、ファンド名をクリップボードへコピー */}
+                  <div className="mt-2 pt-2 border-t border-gray-100">
+                    <div className="text-[10px] text-gray-500 mb-1.5">
+                      🛒 ファンド名をコピーして証券会社の投信ページを開きます
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {BROKERS.map(b => (
+                        <button
+                          key={b.id}
+                          onClick={async () => {
+                            const copied = await openBrokerWithFundName(b, item.fund.name);
+                            if (!copied) {
+                              alert('ファンド名のコピーに失敗しました。手動でコピーしてください:\n\n' + item.fund.name);
+                            }
+                          }}
+                          className={`text-[11px] font-medium text-white px-2.5 py-1 rounded transition-colors ${b.bgClass}`}
+                          title={`${b.name}で「${item.fund.name}」を購入（新タブで開く）`}
+                        >
+                          🔗 {b.shortName}で購入
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               ))}
