@@ -8,6 +8,7 @@ import MyPortfolio from './components/MyPortfolio';
 import AlertBanner from './components/AlertBanner';
 import AlertSettingsPanel from './components/AlertSettingsPanel';
 import ErrorBoundary from './components/ErrorBoundary';
+import ConsultationPanel from './components/ConsultationPanel';
 import { useAuth } from './hooks/useAuth';
 import { useFunds } from './hooks/useFunds';
 import type { Fund, PortfolioItem, SearchFilters } from './lib/types';
@@ -301,6 +302,12 @@ export default function App() {
             )}
           </div>
         </div>
+      )}
+
+      {activeTab === 'consultation' && (
+        <ErrorBoundary resetKey={`consultation-${presetId ?? 'none'}`}>
+          <ConsultationPanel items={selectedFunds} presetId={presetId} />
+        </ErrorBoundary>
       )}
 
       {detailFund && (

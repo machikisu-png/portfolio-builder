@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import type { MonitoringConfig } from '../lib/alertTypes';
+import { defaultRules, RECOMMENDED_META } from '../lib/alertTypes';
 
 interface AlertSettingsPanelProps {
   config: MonitoringConfig;
@@ -33,6 +35,15 @@ export default function AlertSettingsPanel({ config, onConfigChange }: AlertSett
     );
     onConfigChange({ ...config, rules });
   };
+
+  const resetToRecommended = () => {
+    if (!confirm('全ルールの閾値・ON/OFFをFP推奨値にリセットします。よろしいですか？')) return;
+    // deep-copy で参照を切る
+    const rules = defaultRules.map(r => ({ ...r }));
+    onConfigChange({ ...config, rules });
+  };
+
+  const [showGuide, setShowGuide] = useState(false);
 
   const lastCheckedStr = config.lastChecked
     ? new Date(config.lastChecked).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' })
@@ -85,7 +96,62 @@ export default function AlertSettingsPanel({ config, onConfigChange }: AlertSett
 
           {/* アラートルール */}
           <div>
-            <label className="block text-sm font-medium text-gray-600 mb-2">通知ルール</label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium text-gray-600">
+                通知ルール（買い替え・リバランス検討の基準値）
+                <span className="ml-2 text-[10px] font-normal text-gray-400">推奨値 {RECOMMENDED_META.lastUpdated} 更新</span>
+              </label>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowGuide(s => !s)}
+                  className="text-[11px] text-blue-600 hover:underline"
+                >
+                  {showGuide ? '基準値ガイドを閉じる' : '📖 基準値ガイド'}
+                </button>
+                <button
+                  type="button"
+                  onClick={resetToRecommended}
+                  className="text-[11px] px-2 py-1 bg-amber-500 text-white rounded hover:bg-amber-600"
+                  title="ファイナンシャルプランナー標準の推奨値に戻します"
+                >
+                  ⭐ 推奨値にリセット
+                </button>
+              </div>
+            </div>
+
+            {showGuide && (
+              <div className="mb-3 bg-amber-50 border border-amber-200 rounded-lg p-3 text-[11px] leading-relaxed text-amber-900">
+                <div className="flex items-center justify-between mb-2 pb-2 border-b border-amber-200">
+                  <p className="font-semibold">📅 推奨値の最終更新: {RECOMMENDED_META.lastUpdated}</p>
+                  <span className="text-[10px] text-amber-700">世界情勢に応じて随時改訂</span>
+                </div>
+
+                <p className="font-semibold mb-1">当時の市場前提</p>
+                <p className="mb-2 text-amber-800">{RECOMMENDED_META.marketContext}</p>
+
+                <p className="font-semibold mb-1">各閾値の根拠</p>
+                <ul className="list-disc list-inside space-y-0.5 mb-2">
+                  {RECOMMENDED_META.rationale.map((r, i) => (
+                    <li key={i}>{r}</li>
+                  ))}
+                </ul>
+
+                <div className="mt-2 pt-2 border-t border-amber-200 bg-amber-100 -mx-3 -mb-3 px-3 py-2 rounded-b-lg">
+                  <p className="font-semibold mb-0.5">🔄 推奨値を最新化したい場合</p>
+                  <p className="text-amber-800">
+                    Claude に「<b>推奨値を最新の世界情勢に更新して</b>」と依頼してください。
+                    現在の金利・インフレ・ボラティリティ水準を踏まえて閾値を再設定し、
+                    その後この画面の「⭐ 推奨値にリセット」を押すと反映されます。
+                  </p>
+                </div>
+
+                <p className="mt-2 text-amber-700">
+                  ※これは「絶対売れ」の合図ではありません。あくまで<b>確認・検討を始めるトリガー</b>です。
+                  実際の売買判断は「相談」タブから現状シートを生成しClaudeへ相談することをお勧めします。
+                </p>
+              </div>
+            )}
             <div className="space-y-2">
               {config.rules.map(rule => (
                 <div
