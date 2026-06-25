@@ -7,6 +7,7 @@
 import type { PortfolioItem, PortfolioPreset } from './types';
 import { calcPortfolioStats } from './optimizer';
 import { computeModernStats } from './proCovariance';
+import { buildRegimeAdvice } from './regimeAdvice';
 import {
   type UserProfile,
   OCCUPATION_LABELS,
@@ -110,7 +111,23 @@ export function buildConsultationText(input: ConsultationInput): string {
   lines.push('');
 
   // ===== 相談内容 =====
-  lines.push('## 3. 相談内容');
+  // ===== 制度活用ガイド（自動診断） =====
+  const advice = buildRegimeAdvice(profile);
+  lines.push('## 3. 制度活用ガイド（自動診断）');
+  lines.push(`- 推奨ステージ: ${advice.stageLabel}（${advice.currentStage}/4）`);
+  lines.push(`- 推奨アクション: ${advice.stageAction}`);
+  lines.push(`- 生活防衛資金: ${profile.savings ?? 0} / ${advice.defenseFundTarget}万円（達成率 ${Math.round(advice.defenseFundRatio * 100)}%）`);
+  lines.push(`- iDeCo月額上限: ${advice.iDeCoMonthlyLimit > 0 ? `${advice.iDeCoMonthlyLimit.toLocaleString()}円/月` : '対象外'}`);
+  if (advice.taxSavingPerYear !== null) {
+    lines.push(`- iDeCo上限時の節税効果: 約${Math.round(advice.taxSavingPerYear / 1000) / 10}万円/年（20年累計 約${Math.round(advice.taxSavingPerYear * 20 / 10000)}万円）`);
+  }
+  if (advice.warnings.length > 0) {
+    lines.push('- 注意点:');
+    advice.warnings.forEach(w => lines.push(`  - ${w}`));
+  }
+  lines.push('');
+
+  lines.push('## 4. 相談内容');
   if (scenarios.length > 0) {
     lines.push('### 確認したいこと');
     scenarios.forEach(s => {

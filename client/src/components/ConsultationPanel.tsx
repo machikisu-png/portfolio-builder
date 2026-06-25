@@ -12,6 +12,7 @@ import {
   RETIREMENT_LABELS,
 } from '../lib/userProfile';
 import { buildConsultationText, SCENARIO_TEXT } from '../lib/consultationExport';
+import { buildRegimeAdvice } from '../lib/regimeAdvice';
 
 interface Props {
   items: PortfolioItem[];
@@ -300,6 +301,98 @@ export default function ConsultationPanel({ items, presetId }: Props) {
           />
         </label>
       </div>
+
+      {/* 制度活用ガイド（NISA / iDeCo） */}
+      {(() => {
+        const advice = buildRegimeAdvice(profile);
+        const ratioPct = Math.round(advice.defenseFundRatio * 100);
+        return (
+          <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-200 rounded-lg shadow p-4">
+            <h3 className="text-base font-semibold text-purple-900 mb-1">
+              🎯 NISA・iDeCo 制度活用ガイド
+            </h3>
+            <p className="text-[11px] text-purple-700 mb-3">
+              プロフィール入力に応じて、世界一のFP視点で「いま何をすべきか」を段階別に提示します
+            </p>
+
+            {/* 現在のステージ */}
+            <div className="bg-white rounded-lg p-3 mb-3 border border-purple-100">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm font-bold text-purple-900">{advice.stageLabel}</span>
+                <span className="text-[10px] text-gray-500">ステージ {advice.currentStage}/4</span>
+              </div>
+              <p className="text-xs text-gray-700 leading-relaxed">{advice.stageAction}</p>
+            </div>
+
+            {/* 主要指標 */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3">
+              <div className="bg-white rounded-lg p-2.5 border border-purple-100">
+                <div className="text-[10px] text-gray-500 mb-0.5">生活防衛資金</div>
+                <div className="text-sm font-bold text-gray-800">
+                  {profile.savings ?? 0} / {advice.defenseFundTarget}万円
+                </div>
+                <div className="mt-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full transition-all ${ratioPct >= 100 ? 'bg-green-500' : ratioPct >= 50 ? 'bg-amber-500' : 'bg-red-500'}`}
+                    style={{ width: `${ratioPct}%` }}
+                  />
+                </div>
+                <div className="text-[10px] text-gray-500 mt-0.5">{ratioPct}% 達成</div>
+              </div>
+
+              <div className="bg-white rounded-lg p-2.5 border border-purple-100">
+                <div className="text-[10px] text-gray-500 mb-0.5">iDeCo月額上限</div>
+                <div className="text-sm font-bold text-gray-800">
+                  {advice.iDeCoMonthlyLimit > 0
+                    ? `${(advice.iDeCoMonthlyLimit / 1000).toFixed(1)}千円/月`
+                    : '対象外'}
+                </div>
+                <div className="text-[10px] text-gray-500 mt-0.5">
+                  年 {advice.iDeCoMonthlyLimit > 0 ? `${(advice.iDeCoMonthlyLimit * 12 / 10000).toFixed(1)}万` : '0'}円
+                </div>
+              </div>
+
+              <div className="bg-white rounded-lg p-2.5 border border-purple-100">
+                <div className="text-[10px] text-gray-500 mb-0.5">iDeCo上限時の節税</div>
+                <div className="text-sm font-bold text-emerald-600">
+                  {advice.taxSavingPerYear !== null
+                    ? `約 ${Math.round(advice.taxSavingPerYear / 1000) / 10}万円/年`
+                    : '年収入力で算出'}
+                </div>
+                <div className="text-[10px] text-gray-500 mt-0.5">20年で約 {advice.taxSavingPerYear !== null ? Math.round(advice.taxSavingPerYear * 20 / 10000) : '-'}万円</div>
+              </div>
+            </div>
+
+            {/* 推奨事項 */}
+            {advice.recommendations.length > 0 && (
+              <div className="bg-white rounded-lg p-3 mb-2 border border-purple-100">
+                <div className="text-xs font-semibold text-purple-800 mb-1.5">💡 ポイント</div>
+                <ul className="space-y-1 text-[11px] text-gray-700 leading-relaxed">
+                  {advice.recommendations.map((r, i) => (
+                    <li key={i} className="flex gap-1.5"><span className="text-purple-400">▸</span><span>{r}</span></li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* 警告 */}
+            {advice.warnings.length > 0 && (
+              <div className="bg-amber-50 rounded-lg p-3 border border-amber-200">
+                <div className="text-xs font-semibold text-amber-900 mb-1.5">注意点</div>
+                <ul className="space-y-1 text-[11px] text-amber-800 leading-relaxed">
+                  {advice.warnings.map((w, i) => (
+                    <li key={i}>{w}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            <p className="text-[10px] text-gray-500 mt-2">
+              ※あくまで一般則の自動診断です。具体的な運用方針は下の「相談シートを生成」からClaudeへ詳細相談してください。
+            </p>
+          </div>
+        );
+      })()}
 
       {/* シナリオ選択 */}
       <div className="bg-white rounded-lg shadow p-4">
