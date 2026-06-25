@@ -310,6 +310,30 @@ export default function App() {
         </ErrorBoundary>
       )}
 
+      {activeTab === 'technical' && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-gray-500">
+              暗号通貨・金・株のテクニカル分析（別アプリを埋め込み表示）
+            </p>
+            <a
+              href="https://technical-analysis-7cfa5.web.app"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-blue-600 hover:underline whitespace-nowrap"
+            >
+              別タブで開く ↗
+            </a>
+          </div>
+          <iframe
+            src="https://technical-analysis-7cfa5.web.app"
+            title="テクニカル分析"
+            className="w-full rounded-lg border border-gray-200 bg-white"
+            style={{ height: 'calc(100vh - 180px)', minHeight: 520 }}
+          />
+        </div>
+      )}
+
       {detailFund && (
         <FundDetailModal
           fund={detailFund}

@@ -14,6 +14,7 @@ const tabs = [
   { id: 'myportfolio', label: 'マイポートフォリオ', shortLabel: 'マイPF' },
   { id: 'monitoring', label: 'モニタリング', shortLabel: '監視' },
   { id: 'consultation', label: '相談', shortLabel: '相談' },
+  { id: 'technical', label: '📈 テクニカル分析', shortLabel: '📈分析' },
 ];
 
 export default function Layout({ children, activeTab, onTabChange, alertCount }: LayoutProps) {
